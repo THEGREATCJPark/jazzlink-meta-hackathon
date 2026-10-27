@@ -1,6 +1,12 @@
 # JazzLink AI — NYC Hackathon Edition
 
-A new application for NYC venue operators and musicians: turn agreed gig details into consistent contracts, signatures, posters, and reviewed event listings.
+A new application for NYC bandleaders and freelance musicians: clarify gig conditions from existing conversations, then carry confirmed details into contracts, signatures and posters.
+
+## Product direction
+- **Vision:** less administrative work, more time for music and audiences.
+- **Strategy:** help musicians find missing or ambiguous conditions, prepare clarification questions, and review replies while keeping negotiation in their existing messenger.
+- **Target product:** complete the journey through reviewed conditions, bilingual contract, two-party signing, signed PDF and poster.
+- **Validation target:** at least 30% less active preparation time than equivalent-quality manual work. This target has **not been measured or achieved**. See [the plan](docs/PLAN.md) for the comparison protocol.
 
 ## Status
 An early, manually entered gig-details prototype is deployed. Storage, model integration, contracts, signing, PDF, and posters are not implemented.

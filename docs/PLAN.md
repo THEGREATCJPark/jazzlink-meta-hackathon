@@ -6,13 +6,45 @@ The prior saved development plan was retrieved. The original full research attac
 Discard earlier directives to preserve React/Vite/Firebase, extend old contract services, reuse existing code, or target the old database.
 API IDs, legal rules, pricing and participant-only submission details require primary-source/account verification before implementation.
 
-## Users and promise
-NYC venue operators and bandleaders agree gig details once and keep the contract, signatures and promotional assets consistent.
+## Vision, strategy and product — user decisions, 2026-10-27
+
+### Vision: enduring purpose
+Reduce the administrative burden of preparing and running performances so musicians can spend more time on music and their audiences.
+AI, contracts and posters are means to this purpose, not the vision itself.
+
+### Strategy: initial approach and hypotheses
+- Primary user: NYC bandleaders and freelance musicians who personally coordinate their gigs. Venues are counterparties, not an equally prioritized initial acquisition audience.
+- First problem: repeated clarification caused by missing or ambiguous performance conditions, especially fees, payment dates and set times.
+- Entry point: the musician supplies an existing conversation or notes. The assistant extracts supported facts, identifies gaps/conflicts, and drafts useful clarification questions for human review and copying.
+- Keep negotiation in the existing messenger. Do not require the venue to join a shared negotiation workspace or automatically contact it.
+- The musician brings the venue's reply back into JazzLink. Show changed facts, their sources and remaining questions before human confirmation.
+- Pasted replies and the musician's confirmation do not prove the counterparty's consent. Later signing still requires each party to explicitly approve the same contract version through an authenticated flow.
+- Hypothesis to test: this clarification-and-reply loop reduces active preparation time without inventing terms, adding unnecessary questions, or moving hidden work to the venue.
+
+### Product: hackathon scope to implement
+Keep the complete core journey mandatory: conversation/notes -> review and copy clarification questions -> import reply -> review changes and unresolved conditions -> confirmed GigSpec -> English contract and Korean reference -> two-party signing -> signed PDF -> poster.
+The contract and poster reuse the confirmed conditions; they support the core coordination problem rather than becoming unrelated generators.
+An in-app negotiation chat, automatic messenger sending and musician matching are not required for this journey.
+This is the agreed target product, not a statement that these features are implemented.
+
+### Success criterion: target, not a result
+The user selected **at least 30% less active preparation time than a manual workflow of equivalent quality**, from condition clarification through contract, signing, PDF and poster completion.
+No baseline or savings result has been measured yet. Do not advertise a 30% saving as an achieved fact.
+
+Proposed measurement protocol for implementation and later validation:
+- Compare equivalent synthetic gig cases, required outputs and review/signing steps. Include reading, correcting AI mistakes and retries in active work time.
+- Record the musician's active work time as the primary measure. Separately record venue work, external reply waiting and machine processing time; do not hide burden shifted to the counterparty.
+- Calculate reduction as `(manual active time - JazzLink active time) / manual active time * 100` for a completed comparison.
+- Preserve factual accuracy, privacy, explicit approvals and matching signed revisions in both workflows. Incomplete or lower-quality outputs do not count as successful time savings.
+- Record participant count, familiarity, case differences and test order. Use comparable case variants to limit learning effects. Report individual results and limitations rather than extrapolating synthetic trials to all musicians.
+- This measures the full workflow; separately time clarification to test whether the chosen strategy contributes to the result.
+
+## Domain and demo conventions
 English is primary; Korean is a reference translation for contract comprehension.
 Synthetic demo: Blue Alley, a fictional NYC venue, a fictional bandleader, USD 900 fee, two sets. Audience ticket price is a different field.
 
 ## Priority
-P0: natural-language details -> missing/conflicting fact questions -> explicit confirmation -> immutable GigSpec revision.
+P0: conversation/notes -> source-backed missing/conflicting fact questions -> human review and copy -> pasted counterparty reply -> reviewed changes -> explicit confirmation -> immutable GigSpec revision.
 P0: English contract and Korean reference; two authenticated parties sign the exact same revision; downloadable PDF and audit events.
 P0: Meta-generated background plus deterministic text, PNG at 1080x1080 and 1080x1920.
 P0 integration gate: SAM cutout attempt; original-photo layout remains usable if unavailable.

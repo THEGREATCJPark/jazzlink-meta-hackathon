@@ -1,7 +1,7 @@
 # JazzLink AI development plan
 
 Planning baseline: 2026-10-27, inspected repository HEAD 279c789.
-Status: proposed delivery plan responding to the user's Pro review. Documentation only; planned features are not implemented. This replaces the earlier full-contract/signature/poster target for this planning iteration. Final submission remains user-reviewed.
+Status: historical delivery plan responding to the user's Pro review. It was documentation-only when written; some features have since been implemented. For the current state and verification evidence, see [the review guide](REVIEW_GUIDE.md). This plan replaced the earlier full-contract/signature/poster target. Final submission remains user-reviewed.
 
 ## 1. Product decision
 

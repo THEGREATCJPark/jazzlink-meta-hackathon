@@ -2,6 +2,8 @@
 
 Status: **prepared, not run**. The cases are fictional, authored for this repository, and are not proof of accuracy, time savings, user demand or legal effect. No bulk live call has been made or enabled by this document.
 
+A separate basic synthetic GitHub Actions adapter probe using `muse-spark-1.3` [completed on 2026-10-27](https://github.com/THEGREATCJPark/jazzlink-meta-hackathon/actions/runs/40460130677). It is not one of the holdout cases and is not a contextual-change evaluation or a production credential check. See the [review guide](REVIEW_GUIDE.md) for the observation and earlier availability failures.
+
 ## Fixed holdout
 
 The frozen dataset is [evaluation-v1.json](../tests/fixtures/evaluation-v1.json): eight change/conflict cases C01–C08 and four normal controls N01–N04. Each case has source text, required observations, forbidden assertions and example source excerpts. Expected excerpts are labels for manual assessment, not additional text to send to a model.

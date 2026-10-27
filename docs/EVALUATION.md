@@ -23,6 +23,8 @@ Do not use this set to tune prompts during implementation; use separate developm
 
 ## Manual provider-adapter run: one case
 
+For a separate contextual connectivity diagnostic, a trusted operator can run `powershell -NoProfile -File .\scripts\meta-context-diagnostic.ps1` from the repository root and enter an existing Meta key at the masked local prompt. The script makes one catalog request; only if the exact entered model ID appears does it make one synthetic contextual adapter call, with no retry and at most 1,800 output tokens. It does not access the app route, database or application quota. Output requires human review and is not a holdout score. The key is kept in process memory rather than arguments or files. The operator must independently know whether the key is the production key: Vercel Production Secrets cannot be read back through the local CLI, and a separate GitHub key does not establish production access. This diagnostic has not been run.
+
 The separately dispatched GitHub Actions workflow **Meta holdout — one selected case** performs at most one provider request per invocation. It is not run by push, pull requests or default CI, and preparing the workflow did not run any case.
 
 1. Ensure the workflow is present on the repository's default branch. In GitHub, open **Actions → Meta holdout — one selected case → Run workflow**.

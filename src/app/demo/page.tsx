@@ -23,6 +23,11 @@ const original = {
 const initialSource = "Venue: The Example Trio can play Blue Alley Jazz Night at Blue Alley on November 20, 2026. Two sets at 20:00 and 22:00, total performance fee $900. Payment date still to be confirmed.";
 const requestSource = "Venue: Could we start at 21:00 and add one set?";
 const replySource = "Venue: For three sets at 21:00, 22:00 and 23:00, the total performance fee would be $1,200. Payment date still to be confirmed.";
+const demoQuestions = [
+  "What are all the new set times?",
+  "What is the total performance fee for the complete new arrangement, including the additional set?",
+  "When will payment be made?",
+];
 
 const previousRows: ChangeReviewRow[] = [
   { field: "date", label: "Date", value: original.date, status: "Previously reviewed by you" },
@@ -84,7 +89,7 @@ export default function DemoPage() {
 
   async function copyQuestions() {
     try {
-      await navigator.clipboard.writeText("• What are all the new set times?\n• What is the total fee for the additional set?\n• When will payment be made?");
+      await navigator.clipboard.writeText(demoQuestions.map((question) => `• ${question}`).join("\n"));
       setCopyMessage("Copied. Review the questions before sending them yourself.");
     } catch { setCopyMessage("Copy was unavailable. Select the questions and copy them manually."); }
   }
@@ -134,7 +139,7 @@ export default function DemoPage() {
         <h2 id="request-title">A request is not a change yet.</h2>
         <blockquote>{requestSource}</blockquote>
         <div className={styles.pending}><strong>Needs clarification</strong><p>Only a new start time and one extra set were requested. The full schedule and fee for that arrangement are not confirmed. The earlier review stays as it was.</p></div>
-        <div className={styles.questions}><strong>Questions you could ask</strong><ul><li>What are all the new set times?</li><li>What is the total fee for the additional set?</li><li>When will payment be made?</li></ul><button className={styles.secondary} type="button" onClick={copyQuestions}>Copy questions</button>{copyMessage && <p role="status">{copyMessage}</p>}<p>Nothing is sent for you.</p></div>
+        <div className={styles.questions}><strong>Questions you could ask</strong><ul>{demoQuestions.map((question) => <li key={question}>{question}</li>)}</ul><button className={styles.secondary} type="button" onClick={copyQuestions}>Copy questions</button>{copyMessage && <p role="status">{copyMessage}</p>}<p>Nothing is sent for you.</p></div>
         <ChangeReview previous={previousRows} current={pendingRows} />
         {phase === "request" && <button className={styles.primary} type="button" onClick={() => setPhase("reply")}>Show the fictional reply →</button>}
       </section>}

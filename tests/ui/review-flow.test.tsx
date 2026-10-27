@@ -136,3 +136,15 @@ it("keeps conflicting proposals visible and matching details behind disclosure",
   expect(matching.open).toBe(true);
   expect(within(matching).getByText("Venue")).toBeTruthy();
 });
+
+it("advances the workflow stepper without implying approval", () => {
+  vi.stubGlobal("fetch", vi.fn(async () => failure(401, "Sign in")));
+  render(<Home />);
+  const steps = within(screen.getByRole("list", { name: "Workflow steps" })).getAllByRole("listitem");
+  expect(steps[0].getAttribute("aria-current")).toBe("step");
+  fireEvent.click(screen.getByRole("button", { name: /preview example results without ai/i }));
+  expect(steps[0].getAttribute("aria-current")).toBeNull();
+  expect(within(steps[0]).getByText("(done)")).toBeTruthy();
+  expect(steps[1].getAttribute("aria-current")).toBe("step");
+  expect(screen.getByText("Unsaved changes")).toBeTruthy();
+});

@@ -1,0 +1,12 @@
+.page{min-height:100vh;display:flex;flex-direction:column}
+.main{flex:1;display:grid;place-items:center;padding:40px var(--gutter)}
+.card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:32px;box-shadow:var(--shadow)}
+.card h1{font-size:34px}
+.lead{font-size:var(--fs-sm);color:var(--muted);line-height:1.6;margin:0 0 20px}
+.form{display:grid;gap:14px}
+.form label{display:grid;gap:6px;font-size:var(--fs-sm);font-weight:700;color:var(--ink-2)}
+.form input{padding:11px 12px;font-weight:400}
+.form button{margin-top:6px}
+.alt{font-size:var(--fs-sm);color:var(--muted);margin:20px 0 0;text-align:center}
+.error{margin-bottom:16px}
+@media(max-width:600px){.card{padding:22px}}

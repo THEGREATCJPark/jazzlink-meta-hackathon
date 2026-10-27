@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
+import { Stepper } from "@/components/site/Stepper";
 import { ChangeReview } from "@/components/ChangeReview";
 import type { ChangeReviewRow } from "@/components/change-review-data";
 import PublicTermsCard from "@/components/PublicTermsCard";
@@ -42,6 +44,13 @@ const pendingRows: ChangeReviewRow[] = [
   { field: "additionalSets", label: "Additional sets requested", value: "1", status: "proposed" },
   { field: "feeCents", label: "Performance fee (private)", value: "Not confirmed for the request", status: "unclear" },
 ];
+
+const demoSteps = [
+  { title: "Review original details", hint: "What was already discussed" },
+  { title: "Inspect the changes", hint: "A request, not a change yet" },
+  { title: "Record your review", hint: "Choose what to carry forward" },
+];
+const stepIndex: Record<Phase, number> = { initial: 0, request: 1, reply: 2, reviewed: 3 };
 
 function money(cents: number | null) {
   return cents === null ? "Not confirmed" : `$${(cents / 100).toFixed(2)}`;
@@ -101,24 +110,20 @@ export default function DemoPage() {
     { field: "feeCents", label: "Performance fee (private)", value: money(snapshot.feeCents), status: snapshot.feeCents === null ? "unclear" : snapshot.usesNewSchedule ? "Reviewed by you; not counterparty approval" : "Earlier value retained; request pending" },
   ] : pendingRows;
 
-  return <main className={styles.page}>
-    <header className={styles.header}>
-      <Link href="/" className={styles.brand}>JAZZLINK <span>AI</span></Link>
-      <nav><Link href="/">Live AI workspace ↗</Link><button type="button" onClick={startOver}>Start over</button></nav>
-    </header>
+  return <div className={styles.page}>
+    <SiteHeader badge="FICTIONAL DEMO">
+      <Link href="/">Live AI workspace <span aria-hidden="true">↗</span></Link>
+      <button className="btn btn-secondary btn-small" type="button" onClick={startOver}>Start over</button>
+    </SiteHeader>
 
-    <div className={styles.content}>
+    <main id="main" className={styles.content}>
       <p className={styles.eyebrow}>INTERACTIVE FICTIONAL DEMO</p>
       <h1>One change. <em>A clearer conversation.</em></h1>
       <p className={styles.lead}>See how a bandleader can inspect an earlier gig and a new request without silently changing the terms.</p>
       <div className={styles.notice} role="note"><strong>This is a prewritten example, not an AI result.</strong> Your demo choices stay in this browser and are not sent or saved; reloading clears them. Blue Alley and all messages are fictional.</div>
       <p className={styles.small}>For a real Meta-powered analysis of synthetic or permission-cleared text, use the <Link href="/">signed-in workspace</Link>.</p>
 
-      <ol className={styles.steps} aria-label="Demo steps">
-        <li className={phase === "initial" ? styles.active : ""}><span>01</span> Review original details</li>
-        <li className={phase === "request" ? styles.active : ""}><span>02</span> Inspect the changes</li>
-        <li className={phase === "reply" || phase === "reviewed" ? styles.active : ""}><span>03</span> Record your review</li>
-      </ol>
+      <Stepper label="Demo steps" steps={demoSteps} current={stepIndex[phase]} />
 
       <section className={styles.panel} aria-labelledby="initial-title">
         <p className={styles.kicker}>01 / ORIGINAL MESSAGE</p>
@@ -131,7 +136,7 @@ export default function DemoPage() {
           <div><span>PERFORMANCE FEE · PRIVATE</span><strong>{money(original.feeCents)}</strong></div>
         </div>
         <p className={styles.small}>The payment date is unknown. Your review is not proof that the other party approved anything in this app.</p>
-        {phase === "initial" ? <button className={styles.primary} type="button" onClick={() => setPhase("request")}>I reviewed these original details →</button> : <p className={styles.done}>✓ Original details reviewed by you in this demo</p>}
+        {phase === "initial" ? <button className="btn btn-primary" type="button" onClick={() => setPhase("request")}>I reviewed these original details →</button> : <p className={styles.done}>✓ Original details reviewed by you in this demo</p>}
       </section>
 
       {phase !== "initial" && <section className={styles.panel} aria-labelledby="request-title">
@@ -139,9 +144,9 @@ export default function DemoPage() {
         <h2 id="request-title">A request is not a change yet.</h2>
         <blockquote>{requestSource}</blockquote>
         <div className={styles.pending}><strong>Needs clarification</strong><p>Only a new start time and one extra set were requested. The full schedule and fee for that arrangement are not confirmed. The earlier review stays as it was.</p></div>
-        <div className={styles.questions}><strong>Questions you could ask</strong><ul>{demoQuestions.map((question) => <li key={question}>{question}</li>)}</ul><button className={styles.secondary} type="button" onClick={copyQuestions}>Copy questions</button>{copyMessage && <p role="status">{copyMessage}</p>}<p>Nothing is sent for you.</p></div>
+        <div className={styles.questions}><strong>Questions you could ask</strong><ul>{demoQuestions.map((question) => <li key={question}>{question}</li>)}</ul><button className="btn btn-secondary" type="button" onClick={copyQuestions}>Copy questions</button>{copyMessage && <p role="status">{copyMessage}</p>}<p>Nothing is sent for you.</p></div>
         <ChangeReview previous={previousRows} current={pendingRows} />
-        {phase === "request" && <button className={styles.primary} type="button" onClick={() => setPhase("reply")}>Show the fictional reply →</button>}
+        {phase === "request" && <button className="btn btn-primary" type="button" onClick={() => setPhase("reply")}>Show the fictional reply →</button>}
       </section>}
 
       {(phase === "reply" || phase === "reviewed") && <section className={styles.panel} aria-labelledby="reply-title">
@@ -155,9 +160,9 @@ export default function DemoPage() {
           {useNewSchedule && !useNewFee && <p className={styles.warning}>The new fee remains unconfirmed. The earlier $900 will not be carried into the three-set arrangement.</p>}
           <label><input type="checkbox" checked={reviewConfirmed} onChange={(event) => setReviewConfirmed(event.target.checked)} /> <span>I reviewed these choices and understand that unresolved items remain.</span></label>
           {message && <p className={styles.warning} role="alert">{message}</p>}
-          <button className={styles.primary} type="button" disabled={!reviewConfirmed} onClick={reviewReply}>Record my demo review →</button>
+          <button className="btn btn-primary" type="button" disabled={!reviewConfirmed} onClick={reviewReply}>Record my demo review →</button>
         </div>}
-        {phase === "reviewed" && <button className={styles.secondary} type="button" onClick={() => { setPhase("reply"); setReviewConfirmed(false); setPublicConfirmed(false); }}>Revise my choices</button>}
+        {phase === "reviewed" && <button className="btn btn-secondary" type="button" onClick={() => { setPhase("reply"); setReviewConfirmed(false); setPublicConfirmed(false); }}>Revise my choices</button>}
       </section>}
 
       {phase === "reviewed" && snapshot && <section className={styles.panel} aria-labelledby="result-title">
@@ -180,7 +185,7 @@ export default function DemoPage() {
           date={original.date} sets={snapshot.sets} setCount={String(snapshot.setCount)} />}
         <p className={styles.small}>The card is a local download only. The performance fee, messages and payment details are never passed to it.</p>
       </section>}
-    </div>
-    <footer className={styles.footer}>JAZZLINK AI · FICTIONAL DEMO · AMERICA/NEW_YORK · USD</footer>
-  </main>;
+    </main>
+    <SiteFooter items={["JAZZLINK AI", "FICTIONAL DEMO", "AMERICA/NEW_YORK · USD"]} />
+  </div>;
 }

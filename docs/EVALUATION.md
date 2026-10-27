@@ -21,6 +21,20 @@ Do not use this set to tune prompts during implementation; use separate developm
 7. Check deterministic app state separately: feed deliberately wrong and proposed candidates into the review flow and demonstrate that the reviewed snapshot cannot be overwritten automatically. A model-only response cannot prove this property.
 8. Record the numerator and denominator, all failures, errors and limitations. Never call a test pass a real customer validation or a legal conclusion.
 
+## Manual provider-adapter run: one case
+
+The separately dispatched GitHub Actions workflow **Meta holdout — one selected case** performs at most one provider request per invocation. It is not run by push, pull requests or default CI, and preparing the workflow did not run any case.
+
+1. Ensure the workflow is present on the repository's default branch. In GitHub, open **Actions → Meta holdout — one selected case → Run workflow**.
+2. Choose the exact branch/ref whose code and fixture have been frozen. Choose a model ID and exactly one case ID. Confirm the existing GitHub Actions secret named `MODEL_API_KEY` is configured; GitHub and Vercel environment variables are separate stores. Never print or share the secret.
+3. Run the workflow once. The script verifies the canonical JSON digest of the frozen dataset, selects only that case's fictional `source` from `evaluation-v1.json`, and sends it to the application Meta adapter. The expected observations, forbidden assertions and evidence labels are **not sent**. If the dataset changed, the run fails before any request; create a new held-out version for a changed dataset. For a valid configuration the adapter is invoked once with no automatic retry; a preflight or missing-key failure may result in zero actual network requests.
+4. Open that run and download its `jazzlink-holdout-<run id>-<attempt>` artifact, if available. `result.json` records the case ID, requested model, Git revision, run identity, start/end, elapsed time, adapter invocation count, sanitized provider status/usage when returned, error kind and the validated synthetic response. `humanScoring: not_started` and `response_received` mean only that a response passed structural/source checks, **not** that the case or evaluation passed. The model's reported tokens may be unavailable on an error or timeout.
+5. A human compares the returned candidates, statuses, quotes and questions with that case's saved labels and the app's display. Record the first attempt and every failure. Any later diagnostic run is a separate paid attempt and must not replace the first result. Only grade the 12-case gate after all outcomes and the independent state test are recorded.
+
+The adapter caps output at 1,800 tokens and times out after 45 seconds; use a fixed overall request/token budget and stop for access, billing or repeated errors. This GitHub path uses the Actions secret and **does not consume or enforce the app's Supabase daily request counters**. Account for it separately. It exercises provider extraction and validation, not the app's login, RLS, persistence, UI, concurrency or end-to-end user journey.
+
+The result file is written before the request and updated for response, failure or an observed interruption. Artifact upload is best effort even on failure; a runner killed before setup, forced termination or artifact service failure can leave no artifact, so preserve the GitHub run status and logs as evidence. Artifacts expire after seven days. Outputs that contain the configured key or credential-like text are withheld entirely and marked `output_withheld`; such a case has no scoreable response. Error messages and secret values are not written to the artifact. Keep results synthetic and do not treat artifact retention as permanent archival.
+
 ## Predeclared exploratory gates
 
 These are development targets defined before a run, not measured performance or guarantees:

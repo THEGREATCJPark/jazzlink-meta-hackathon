@@ -1,0 +1,57 @@
+name: Meta holdout — one selected case
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model ID to test (one request, no retries)
+        required: true
+        type: choice
+        options:
+          - muse-spark-1.2
+          - muse-spark-1.3
+      case_id:
+        description: One frozen synthetic case
+        required: true
+        type: choice
+        options:
+          - C01-missing-year-payment
+          - C02-change-request
+          - C03-partial-acceptance
+          - C04-withdrawal
+          - C05-fee-ticket-confusion
+          - C06-quoted-old-message
+          - C07-date-conflict
+          - C08-untrusted-instruction
+          - N01-complete-basic
+          - N02-no-change
+          - N03-zero-ticket
+          - N04-partial-note-not-conflict
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Evaluate one selected synthetic source
+        env:
+          MODEL_API_KEY: ${{ secrets.MODEL_API_KEY }}
+          MODEL_API_BASE_URL: https://api.meta.ai/v1
+          META_TEXT_MODEL: ${{ inputs.model }}
+          EVAL_CASE_ID: ${{ inputs.case_id }}
+          EVAL_RESULT_PATH: ${{ runner.temp }}/jazzlink-holdout/result.json
+        run: node --experimental-strip-types scripts/evaluate-one.ts
+      - name: Preserve result or interruption record
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jazzlink-holdout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/jazzlink-holdout/result.json
+          if-no-files-found: warn
+          retention-days: 7

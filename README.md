@@ -31,6 +31,7 @@ The Meta adapter runs on the server with bounded text requests; no background jo
 - [Database security regression checks](docs/DB_SECURITY_TESTS.md)
 - [Hackathon contribution record](HACKATHON.md)
 - [User study plan](docs/USER_STUDY.md)
+- [Three-minute demo storyboard](docs/DEMO_STORYBOARD.md)
 - [Agent instructions](AGENTS.md)
 
 ## Milestones

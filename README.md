@@ -30,3 +30,11 @@ Meta providers run on the server. Image/PDF jobs persist status and input revisi
 5. End-to-end verification, demo recording and submission.
 
 Only synthetic or explicitly authorized assets may enter this public repository. No API keys, signed contracts, addresses, private emails, or participant-only materials.
+
+## Current prototype
+
+The local prototype validates manually entered gig details in memory. It does not yet save data, call Meta, produce contracts, collect signatures, or render posters. Do not use it for real agreements.
+
+Requires Node.js 22. Install with `npm ci`, start with `npm run dev`, and verify with `npm run lint`, `npm test`, and `npm run build`. The default CI is offline and does not access secrets.
+
+A separately triggered `Meta API connection check` workflow makes exactly one synthetic request using the existing GitHub Actions secret `MODEL_API_KEY`. The operator must enter a model ID available to the account; the workflow reports metadata and status, not the key or response text. GitHub Actions secrets are not available to local development or Vercel. This probe has not yet been run.

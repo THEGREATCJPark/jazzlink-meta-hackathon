@@ -1,0 +1,38 @@
+name: Meta API connection check
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Exact model ID from your Meta account
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Send one synthetic request
+        env:
+          MODEL_API_KEY: ${{ secrets.MODEL_API_KEY }}
+          MODEL_ID: ${{ inputs.model }}
+        run: |
+          node <<'NODE'
+          const key = process.env.MODEL_API_KEY;
+          const model = process.env.MODEL_ID;
+          if (!key || !model) { console.error('Missing key or model ID'); process.exit(1); }
+          const started = Date.now();
+          (async () => {
+            const res = await fetch('https://api.meta.ai/v1/responses', {
+              method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model, input: 'Reply with the word OK.', max_output_tokens: 128 }),
+              signal: AbortSignal.timeout(45000)
+            });
+            if (!res.ok) { console.error(`Meta request failed: HTTP ${res.status}`); process.exitCode = 1; return; }
+            const body = await res.json();
+            const hasText = Array.isArray(body.output) && body.output.some(item => item.type === 'message' && item.content?.some(part => part.type === 'output_text' && part.text?.trim()));
+            console.log(JSON.stringify({ model: body.model, status: body.status, hasText, elapsedMs: Date.now() - started, usage: body.usage ?? null }));
+            if (body.status !== 'completed' || !hasText) process.exitCode = 1;
+          })().catch(() => { console.error('Request failed or timed out'); process.exitCode = 1; });
+          NODE

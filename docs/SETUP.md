@@ -54,5 +54,6 @@ Synthetic fixtures can be prepared without user assets. No paid calls until budg
 
 - Supabase project `inlotwlppvrscyjncbbb` is healthy in `us-east-1`; its public schema currently has no app tables.
 - Vercel project `metacj/jazzlink-meta-hackathon` is on Hobby, linked to GitHub repository `THEGREATCJPark/jazzlink-meta-hackathon` and production branch `main`. Its initial prototype is at https://jazzlink-meta-hackathon.vercel.app.
-- The GitHub Actions secret `MODEL_API_KEY` exists. A synthetic text request for `muse-spark-1.3` returned `model_not_found`, and authenticated model catalog lookup returned an empty list. Do not claim inference is operational; check the key's associated Meta team and model entitlement before another inference call.
+- The GitHub Actions secret `MODEL_API_KEY` exists. After an initial `model_not_found` and empty catalog, a subsequent catalog listed available models and a synthetic `muse-spark-1.3` request completed with nonempty text (14 input, 18 output tokens). Live image and SAM calls have not been verified.
 - Runtime variables on Vercel have not been configured. A GitHub Actions secret does not populate them. No actual contracts or personal information should be used.
+

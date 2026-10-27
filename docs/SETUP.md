@@ -49,3 +49,10 @@ P0 signing uses authenticated demo parties; do not claim independent certified i
 - Participant-only submission requirements, excluding personal/authentication data.
 
 Synthetic fixtures can be prepared without user assets. No paid calls until budget/access are resolved.
+
+## Verified account state (2026-10-27)
+
+- Supabase project `inlotwlppvrscyjncbbb` is healthy in `us-east-1`; its public schema currently has no app tables.
+- Vercel project `metacj/jazzlink-meta-hackathon` is on Hobby, linked to GitHub repository `THEGREATCJPark/jazzlink-meta-hackathon` and production branch `main`. Its initial prototype is at https://jazzlink-meta-hackathon.vercel.app.
+- The GitHub Actions secret `MODEL_API_KEY` exists. A synthetic text request for `muse-spark-1.3` returned `model_not_found`, and authenticated model catalog lookup returned an empty list. Do not claim inference is operational; check the key's associated Meta team and model entitlement before another inference call.
+- Runtime variables on Vercel have not been configured. A GitHub Actions secret does not populate them. No actual contracts or personal information should be used.

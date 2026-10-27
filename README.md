@@ -10,7 +10,7 @@ A new application for bandleaders: review gig conditions against their source me
 - **Validation target:** at least 30% less active work for change review, clarification and a reviewed terms sheet, at equivalent quality. This is a narrowed measurement scope and has **not been measured or achieved**. See [the plan](docs/PLAN.md).
 
 ## Status
-The deployed early preview contains a text-review workspace, Meta extraction adapter, authenticated private drafts, personal reviewed snapshots, comparison, a deterministic public card and a clearly labeled no-AI fictional example. Browser sign-in, save/reload, snapshot and public-card download flows remain unverified. Participant acknowledgement is not implemented.
+The early preview contains a text-review workspace, Meta extraction adapter, authenticated private drafts, personal reviewed snapshots, comparison, a deterministic public card and a clearly labeled no-AI fictional example. A synthetic example was analyzed, saved, reopened and personally reviewed with a real test account; a sequential stale update in a second tab was rejected. Participant acknowledgement and second-user HTTP isolation are not implemented or verified.
 
 ## Scope and precedence
 Latest user instructions take precedence over earlier planning documents:
@@ -44,7 +44,9 @@ Only synthetic or explicitly authorized assets may enter this public repository.
 
 ## Current prototype
 
-The workspace can submit synthetic text for source-backed AI suggestions and can save private drafts for authenticated accounts once configured. A saved draft or personal review is not an agreement. An application-adapter structured extraction probe succeeded once with muse-spark-1.2; muse-spark-1.3 returned model_not_found despite appearing in the account catalog. Production runtime and user-session verification remain pending. Do not use it for actual agreements or private contracts.
+The workspace can submit synthetic text for source-backed AI suggestions and save private drafts for authenticated accounts. A saved draft or personal review is not an agreement. Production inference succeeded with muse-spark-1.2; muse-spark-1.3 returned model_not_found despite appearing in the account catalog. Do not use this preview for actual agreements or private contracts.
+
+The [interactive fictional demo](https://jazzlink-meta-hackathon.vercel.app/demo) requires no account and runs in browser memory. Its responses are prewritten; it does not make an AI request or persist data.
 
 Requires Node.js 22. Install with `npm ci`, start with `npm run dev`, and verify with `npm run lint`, `npm test`, and `npm run build`. The default CI is offline and does not access secrets.
 

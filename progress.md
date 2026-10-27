@@ -44,3 +44,6 @@
 - Independent review found that new-message analysis could lose previously selected terms and uncertain suggestions could be shown without their status. A separate baseline, explicit carry-forward, status-preserving output and public-value recheck are under implementation.
 - Added server-side integer-cent canonicalization and New York DST gap/fold classification. Database money constraints are prepared but remain unapplied pending deployment of the compatible server.
 - Real account credentials are never stored in this repository, test outputs or logs.
+- Deployed the compatible server, then applied the canonical-money database migration. Existing legacy rows were preserved; a real saved draft was rewritten by the new server and verified to contain a JSON integer cents value. Database tests covered valid/invalid insertions with rollback and documented FK/trigger limits.
+- Added a no-account, browser-memory-only interactive fictional demo; it uses prewritten responses and performs no model requests. Browser tests checked review, explicit public-card confirmation, private fee exclusion and reset behavior.
+- Replaced the native reanalysis confirmation with an in-page confirmation after the browser automation encountered a blocked native dialog.

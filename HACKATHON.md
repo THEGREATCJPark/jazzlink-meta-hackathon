@@ -1,6 +1,6 @@
 # Hackathon contribution record
 
-Last updated for repository state at commit d33815e (2026-10-27). This is a working record, not a statement that the project has been submitted or that every feature is verified.
+Last updated 2026-10-27. This is a working record, not a statement that the project has been submitted or that every feature is verified.
 
 ## Event and submission checkpoints
 
@@ -17,10 +17,10 @@ The earliest commits in this repository began at e135a8d on October 27, 2026 at 
 | Area | Evidence | Status / verification boundary |
 | --- | --- | --- |
 | Product scope and architecture | [README](README.md), [plan](docs/PLAN.md), [architecture](docs/ARCHITECTURE.md), git history | Written for the current project; strategy and impact remain hypotheses |
-| Source-backed terms review and fictional preview | [workspace](src/app/page.tsx), [domain](src/domain/terms.ts), [change comparison](src/domain/changes.ts) | Implemented; full browser journey and independent semantic evaluation remain unverified. The example is prewritten, not a model result. |
-| Server-side model adapter and quotas | [adapter](src/server/meta.ts), [extraction route](src/app/api/extract/route.ts), [migrations](supabase/migrations/) | A single synthetic structured adapter probe completed with muse-spark-1.2. Production runtime, all semantic cases and overall reliability remain unverified. A simple muse-spark-1.3 probe previously succeeded, but a later structured call returned model_not_found. |
-| Private drafts and personal reviewed snapshots | [draft routes](src/app/api/drafts/), [review routes](src/app/api/revisions/), [security checks](docs/DB_SECURITY_TESTS.md) | Implemented; scripted rollback checks covered some database permissions. Browser sign-in, HTTP isolation, concurrency and complete save/reload/review journeys still need testing. A personal review is not counterparty approval or a legal signature. |
-| Comparison and public-card rendering | [review UI](src/components/ChangeReview.tsx), [card UI](src/components/PublicTermsCard.tsx) | Implemented; the actual browser/download flow and exclusions still require end-to-end verification. |
+| Source-backed terms review and fictional preview | [workspace](src/app/page.tsx), [demo](src/app/demo/page.tsx), [domain](src/domain/terms.ts), [change comparison](src/domain/changes.ts) | A synthetic text was analyzed through the production app; independent semantic evaluation remains unverified. The interactive demo is prewritten, not a model result. |
+| Server-side model adapter and quotas | [adapter](src/server/meta.ts), [extraction route](src/app/api/extract/route.ts), [migrations](supabase/migrations/) | A synthetic structured adapter probe and one production app request completed with muse-spark-1.2. Semantic cases and overall reliability remain unverified. A simple muse-spark-1.3 probe previously succeeded, but a later structured call returned model_not_found. |
+| Private drafts and personal reviewed snapshots | [draft routes](src/app/api/drafts/), [review routes](src/app/api/revisions/), [security checks](docs/DB_SECURITY_TESTS.md) | Synthetic data was saved, reopened and reviewed in an authenticated browser. A stale update from a second tab was rejected. HTTP isolation between different users and simultaneous writes still need testing. A personal review is not counterparty approval or a legal signature. |
+| Comparison and public-card rendering | [review UI](src/components/ChangeReview.tsx), [card UI](src/components/PublicTermsCard.tsx) | Implemented; mocked-browser flow and the offline demo were tested. Authenticated full-flow public download still requires verification. |
 | Evaluation preparation | [synthetic holdout](tests/fixtures/evaluation-v1.json), [evaluation guide](docs/EVALUATION.md), [user-study plan](docs/USER_STUDY.md) | Fixtures and instructions only; no model gate or user-time study is complete. |
 
 This table must be updated when the app or verification changes. Git commits, reviewable source and dated actual test results are the evidence; neither the application narrative nor this checklist substitutes for them.

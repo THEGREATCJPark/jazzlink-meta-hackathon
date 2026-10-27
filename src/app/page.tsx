@@ -111,9 +111,10 @@ export default function Home() {
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showReviewConfirm, setShowReviewConfirm] = useState(false);
   const [historyStatus, setHistoryStatus] = useState<"ready" | "loading" | "error">("ready");
   const contextVersion = useRef(0);
-  const editingLocked = busy || saving || reviewBusy || loggingOut;
+  const editingLocked = busy || saving || reviewBusy || loggingOut || showReviewConfirm;
 
   const changedSource = review !== null && review.source !== text;
   const selectedFields = new Set(review?.items.filter((item) => item.selected && validItem(item)).map((item) => item.field) ?? []);
@@ -223,7 +224,6 @@ export default function Home() {
 
   async function analyze() {
     if (!text.trim() || busy || saving || reviewBusy || historyStatus !== "ready") return;
-    if (review && !window.confirm("A new review replaces the edits currently shown. Save first if you need to keep them. Continue?")) return;
     const submitted = text;
     const requestedContext = contextVersion.current;
     const latest = revisions[0];
@@ -258,6 +258,12 @@ export default function Home() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function requestAnalysis() {
+    if (editingLocked || !text.trim()) return;
+    if (review) setShowReviewConfirm(true);
+    else void analyze();
   }
 
   function startManualReview() {
@@ -385,7 +391,7 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand" aria-label="JazzLink AI"><span className="brand-mark">J</span><span>jazzlink<span className="brand-ai"> ai</span></span></div>
-        <div className="topbar-right"><Link href="/auth" target="_blank">Sign in ↗</Link><button className="text-button" type="button" disabled={editingLocked} onClick={leaveAccount}>{loggingOut ? "Signing out…" : "Sign out"}</button><span className="workspace-label">YOUR GIG WORKSPACE</span><span className="prototype-badge"><span /> EARLY PREVIEW</span></div>
+        <div className="topbar-right"><Link href="/demo">Try demo ↗</Link><Link href="/auth" target="_blank">Sign in ↗</Link><button className="text-button" type="button" disabled={editingLocked} onClick={leaveAccount}>{loggingOut ? "Signing out…" : "Sign out"}</button><span className="workspace-label">YOUR GIG WORKSPACE</span><span className="prototype-badge"><span /> EARLY PREVIEW</span></div>
       </header>
 
       <div className="page-content">
@@ -412,7 +418,8 @@ export default function Home() {
             <button className="text-button" type="button" disabled={editingLocked} onClick={previewSample}>Preview example results without AI ↗</button>
             <textarea id="source-text" value={text} disabled={editingLocked} onChange={(event) => setText(event.target.value)} maxLength={8000} placeholder={"Venue: Can your trio play on November 20?\nMusician: Yes, we can do two sets..."} />
             <div className="input-meta"><span>Only use synthetic or permission-cleared material.</span><span>{text.length.toLocaleString()} / 8,000</span></div>
-            <button className="primary-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={analyze}>{busy ? "Reviewing your notes…" : "Review gig details"} <span aria-hidden="true">{busy ? "···" : "↗"}</span></button>
+            <button className="primary-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={requestAnalysis}>{busy ? "Reviewing your notes…" : "Review gig details"} <span aria-hidden="true">{busy ? "···" : "↗"}</span></button>
+            {showReviewConfirm && <div className="review-confirm" role="alertdialog" aria-labelledby="review-confirm-title" aria-describedby="review-confirm-description"><h3 id="review-confirm-title">Start a new review?</h3><p id="review-confirm-description">The current suggestions on this screen will be replaced. Your saved drafts and review history remain available.</p><div className="draft-actions"><button className="secondary-button" type="button" onClick={() => setShowReviewConfirm(false)}>Cancel</button><button className="secondary-button" type="button" onClick={() => { setShowReviewConfirm(false); void analyze(); }}>Replace and analyze</button></div></div>}
             <button className="text-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={startManualReview}>Review manually without AI ↗</button>
             <div className="draft-actions"><button className="secondary-button" type="button" onClick={saveDraft} disabled={editingLocked || !text.trim()}>{saving ? "Saving…" : "Save private draft"}</button><button className="secondary-button" type="button" disabled={editingLocked} onClick={listDrafts}>Open saved drafts</button></div>
             {saveMessage && <p className="local-note" role="status">{saveMessage}</p>}

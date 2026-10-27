@@ -26,7 +26,7 @@ jobs:
           (async () => {
             const res = await fetch('https://api.meta.ai/v1/responses', {
               method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model, input: 'Reply with the word OK.', max_output_tokens: 128 }),
+              body: JSON.stringify({ model, input: 'Reply with the word OK.', reasoning: { effort: 'minimal' }, max_output_tokens: 512 }),
               signal: AbortSignal.timeout(45000)
             });
             if (!res.ok) { const error = await res.json().catch(() => null); const code = error?.error?.code; console.error(JSON.stringify({ status: res.status, code: typeof code === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(code) ? code : null })); process.exitCode = 1; return; }
@@ -36,4 +36,5 @@ jobs:
             if (body.status !== 'completed' || !hasText) process.exitCode = 1;
           })().catch(() => { console.error('Request failed or timed out'); process.exitCode = 1; });
           NODE
+
 

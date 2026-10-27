@@ -17,6 +17,7 @@ jobs:
             if (!response.ok) { console.error(`HTTP ${response.status}`); process.exitCode = 1; return; }
             const payload = await response.json();
             const ids = (payload.data ?? []).map(item => item.id).filter(id => typeof id === 'string' && /^[a-zA-Z0-9_.\/-]{1,100}$/.test(id));
-            console.log(JSON.stringify({ models: ids }));
+            console.log(JSON.stringify({ responseKeys: Object.keys(payload), dataType: Array.isArray(payload.data) ? 'array' : typeof payload.data, count: Array.isArray(payload.data) ? payload.data.length : null, firstItemKeys: Array.isArray(payload.data) && payload.data[0] && typeof payload.data[0] === 'object' ? Object.keys(payload.data[0]) : [], models: ids }));
           })().catch(() => { console.error('Catalog request failed'); process.exitCode = 1; });
           NODE
+

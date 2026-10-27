@@ -3,15 +3,18 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { dollarsToCents, isValidTermValue } from "@/domain/terms";
+import { mayPublish } from "@/domain/publication";
 import { ChangeReview } from "@/components/ChangeReview";
 import PublicTermsCard from "@/components/PublicTermsCard";
+import { signOut } from "@/app/auth/actions";
 import "./style.css";
 
-type Field = "title" | "venue" | "date" | "artist" | "sets" | "feeCents" | "ticketCents" | "paymentTerms";
+type Field = "title" | "venue" | "date" | "artist" | "sets" | "setCount" | "additionalSets" | "feeCents" | "ticketCents" | "paymentTerms";
 type Interpretation = "stated" | "proposed" | "accepted" | "rejected" | "withdrawn" | "unclear";
 type Candidate = { field: Field; value: string; quote: string; status: Interpretation };
-type ReviewItem = Candidate & { editedValue: string; edited: boolean; manual: boolean; selected?: boolean; publicShare?: boolean };
-type Review = { source: string; items: ReviewItem[]; questions: string[]; fixture?: boolean };
+type ReviewItem = Candidate & { editedValue: string; edited: boolean; manual: boolean; selected?: boolean; publicShare?: boolean; publishConfirmed?: boolean; amountCents?: number | null; carriedFrom?: { revision: number; source: string; fixture: boolean } };
+type Baseline = { revision: number; source: string; fixture: boolean; items: ReviewItem[] };
+type Review = { source: string; items: ReviewItem[]; questions: string[]; fixture?: boolean; manualOnly?: boolean; baseline?: Baseline };
 type SavedDraft = { id: string; source_text: string; draft: { review?: Review | null }; version: number; updated_at: string };
 type SavedRevision = { id: string; revision: number; draft_version: number; source_text: string; draft: { review?: Review | null }; created_at: string };
 
@@ -21,12 +24,14 @@ const fields: { key: Field; label: string; hint: string }[] = [
   { key: "date", label: "Performance date", hint: "America/New_York" },
   { key: "artist", label: "Artist or band", hint: "Public information" },
   { key: "sets", label: "Set times", hint: "America/New_York" },
+  { key: "setCount", label: "Total set count", hint: "Total sets for this gig" },
+  { key: "additionalSets", label: "Additional sets requested", hint: "Request only; not automatically added to total" },
   { key: "feeCents", label: "Performance fee", hint: "Private · USD" },
   { key: "ticketCents", label: "Audience ticket price", hint: "Public · USD" },
   { key: "paymentTerms", label: "Payment terms", hint: "Private" },
 ];
 const fieldKeys = new Set(fields.map((field) => field.key));
-const koreanLabels: Record<Field, string> = { title: "공연명", venue: "장소", date: "공연 날짜", artist: "출연자", sets: "세트 시간", feeCents: "출연료", ticketCents: "입장권", paymentTerms: "지급 조건" };
+const koreanLabels: Record<Field, string> = { title: "공연명", venue: "장소", date: "공연 날짜", artist: "출연자", sets: "세트 시간", setCount: "총 세트 수", additionalSets: "추가 요청 세트 수", feeCents: "출연료", ticketCents: "입장권", paymentTerms: "지급 조건" };
 const publicFields = new Set<Field>(["title", "venue", "date", "artist", "sets", "ticketCents"]);
 const statuses = new Set<Interpretation>(["stated", "proposed", "accepted", "rejected", "withdrawn", "unclear"]);
 
@@ -57,6 +62,11 @@ function validItem(item: ReviewItem) {
   const value = item.editedValue.trim();
   if (item.field === "feeCents" || item.field === "ticketCents") return dollarsToCents(value) !== null;
   return isValidTermValue(item.field, value);
+}
+
+function itemStatus(item: ReviewItem) {
+  const origin = item.manual ? "Your entry" : item.edited ? `Your edit; original suggestion: ${labels[item.status]}` : labels[item.status];
+  return item.carriedFrom ? `${origin} · carried from personal review ${item.carriedFrom.revision}` : origin;
 }
 
 function parseResult(data: unknown, source: string): Review {
@@ -100,11 +110,14 @@ export default function Home() {
   const [reviewAcknowledged, setReviewAcknowledged] = useState(false);
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [historyStatus, setHistoryStatus] = useState<"ready" | "loading" | "error">("ready");
   const contextVersion = useRef(0);
+  const editingLocked = busy || saving || reviewBusy || loggingOut;
 
   const changedSource = review !== null && review.source !== text;
-  const presentFields = new Set(review?.items.filter((item) => item.editedValue.trim()).map((item) => item.field) ?? []);
-  const missing = fields.filter((field) => !presentFields.has(field.key));
+  const selectedFields = new Set(review?.items.filter((item) => item.selected && validItem(item)).map((item) => item.field) ?? []);
+  const missing = fields.filter((field) => !selectedFields.has(field.key));
   const concerns = review?.items.filter((item) => item.status === "proposed" || item.status === "unclear") ?? [];
   const competingFields = fields.filter((field) => new Set((review?.items ?? [])
     .filter((item) => item.field === field.key && item.editedValue.trim())
@@ -112,9 +125,9 @@ export default function Home() {
   const hasUnsavedChanges = savedContent !== JSON.stringify({ text, review });
   const previousReview = revisions[0]?.draft.review;
   const publicValue = (field: Field) => {
-    const item = previousReview?.items.find((entry) => entry.field === field && entry.selected && entry.publicShare && validItem(entry));
+    const item = previousReview?.items.find((entry) => entry.field === field && entry.selected && entry.publicShare && validItem(entry) && mayPublish(entry));
     if (!item) return undefined;
-    if (field === "ticketCents") return String(dollarsToCents(item.editedValue));
+    if (field === "ticketCents") return typeof item.amountCents === "number" && Number.isSafeInteger(item.amountCents) ? String(item.amountCents) : undefined;
     return item.editedValue.trim();
   };
   const changeRows = (items: ReviewItem[]) => items.map((item) => ({ field: item.field,
@@ -122,6 +135,7 @@ export default function Home() {
     value: item.editedValue, status: item.manual || item.edited ? "Your entry" : item.status }));
 
   async function saveDraft() {
+    if (busy || saving || reviewBusy) return;
     setSaving(true);
     setSaveMessage("");
     try {
@@ -169,23 +183,29 @@ export default function Home() {
     setReviewRequestId(null);
     setReviewAcknowledged(false);
     setSaveMessage("Draft opened. No agreement has been confirmed.");
+    void loadRevisionsFor(saved.id, contextVersion.current);
   }
 
   async function loadRevisions() {
     if (!draftId) return;
-    const requestedContext = contextVersion.current;
+    await loadRevisionsFor(draftId, contextVersion.current);
+  }
+
+  async function loadRevisionsFor(id: string, requestedContext: number) {
+    setHistoryStatus("loading");
     try {
-      const response = await fetch(`/api/revisions?draftId=${encodeURIComponent(draftId)}`, { cache: "no-store" });
+      const response = await fetch(`/api/revisions?draftId=${encodeURIComponent(id)}`, { cache: "no-store" });
       const result = await response.json();
       if (requestedContext !== contextVersion.current) return;
       if (!response.ok) throw new Error(result.error || "Could not load history.");
       setRevisions(result.revisions);
+      setHistoryStatus("ready");
       setSaveMessage(result.revisions.length ? "Your reviewed snapshots are shown below." : "No reviewed snapshots yet.");
-    } catch (caught) { if (requestedContext === contextVersion.current) setSaveMessage(caught instanceof Error ? caught.message : "Could not load history."); }
+    } catch (caught) { if (requestedContext === contextVersion.current) { setHistoryStatus("error"); setSaveMessage(caught instanceof Error ? caught.message : "Could not load history."); } }
   }
 
   async function recordReview() {
-    if (!draftId || !draftVersion || !reviewAcknowledged || hasUnsavedChanges || changedSource) return;
+    if (!draftId || !draftVersion || !reviewAcknowledged || hasUnsavedChanges || changedSource || busy || saving || historyStatus !== "ready") return;
     const requestId = reviewRequestId ?? crypto.randomUUID();
     setReviewRequestId(requestId);
     setReviewBusy(true);
@@ -202,9 +222,17 @@ export default function Home() {
   }
 
   async function analyze() {
-    if (!text.trim() || busy) return;
+    if (!text.trim() || busy || saving || reviewBusy || historyStatus !== "ready") return;
     if (review && !window.confirm("A new review replaces the edits currently shown. Save first if you need to keep them. Continue?")) return;
     const submitted = text;
+    const requestedContext = contextVersion.current;
+    const latest = revisions[0];
+    const baseline: Baseline | undefined = latest?.draft.review ? {
+      revision: latest.revision,
+      source: latest.draft.review.source,
+      fixture: latest.draft.review.fixture === true,
+      items: structuredClone(latest.draft.review.items.filter((item) => item.selected)),
+    } : undefined;
     setBusy(true);
     setError("");
     setCopyMessage("");
@@ -222,12 +250,28 @@ export default function Home() {
         } catch { /* Show a generic recovery message. */ }
         throw new Error(detail);
       }
-      setReview(parseResult(await response.json(), submitted));
+      const result = parseResult(await response.json(), submitted);
+      if (requestedContext !== contextVersion.current) return;
+      setReview({ ...result, baseline });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Analysis is unavailable. Your text is still here.");
+      if (requestedContext === contextVersion.current) setError(caught instanceof Error ? caught.message : "Analysis is unavailable. Your text is still here.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function startManualReview() {
+    if (!text.trim() || editingLocked || historyStatus !== "ready") return;
+    if (review && !window.confirm("Start a manual review and replace the edits currently shown? Save first if you need them.")) return;
+    const latest = revisions[0];
+    const baseline: Baseline | undefined = latest?.draft.review ? {
+      revision: latest.revision,
+      source: latest.draft.review.source,
+      fixture: latest.draft.review.fixture === true,
+      items: structuredClone(latest.draft.review.items.filter((item) => item.selected)),
+    } : undefined;
+    setReview({ source: text, items: [], questions: [], manualOnly: true, baseline });
+    setError("");
   }
 
   function previewSample() {
@@ -238,8 +282,10 @@ export default function Home() {
       candidates: [
         { field: "venue", value: "Blue Alley", quote: "Blue Alley", status: "stated" },
         { field: "sets", value: "20:00, 22:00", quote: "two sets at 8 PM and 10 PM", status: "stated" },
+        { field: "setCount", value: "2", quote: "two sets", status: "stated" },
         { field: "feeCents", value: "90000", quote: "$900", status: "proposed" },
         { field: "sets", value: "21:00", quote: "start at 9 PM and add another set", status: "proposed" },
+        { field: "additionalSets", value: "1", quote: "add another set", status: "proposed" },
       ],
       questions: ["What is the year of the performance?", "What is the total fee if a third set is added?", "What are all the new set times and payment terms?"],
     };
@@ -249,6 +295,7 @@ export default function Home() {
     setDraftVersion(null);
     setSavedDrafts([]);
     setRevisions([]);
+    setHistoryStatus("ready");
     setReviewAcknowledged(false);
     setReviewRequestId(null);
     setSavedContent("");
@@ -259,7 +306,7 @@ export default function Home() {
   function updateItem(index: number, value: string) {
     setReview((current) => current && {
       ...current,
-      items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, editedValue: value, edited: true, selected: false, publicShare: false } : item),
+      items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, editedValue: value, edited: true, selected: false, publicShare: false, publishConfirmed: false } : item),
     });
   }
 
@@ -267,8 +314,8 @@ export default function Home() {
     setReview((current) => current && {
       ...current,
       items: current.items.map((item, itemIndex) => {
-        if (itemIndex === index) return { ...item, selected, publicShare: selected ? item.publicShare : false };
-        if (selected && item.field === current.items[index].field) return { ...item, selected: false, publicShare: false };
+        if (itemIndex === index) return { ...item, selected, publicShare: selected ? item.publicShare : false, publishConfirmed: selected ? item.publishConfirmed : false };
+        if (selected && item.field === current.items[index].field) return { ...item, selected: false, publicShare: false, publishConfirmed: false };
         return item;
       }),
     });
@@ -276,7 +323,24 @@ export default function Home() {
 
   function setPublicShare(index: number, publicShare: boolean) {
     setReview((current) => current && { ...current, items: current.items.map((item, itemIndex) =>
-      itemIndex === index && item.selected && publicFields.has(item.field) ? { ...item, publicShare } : item) });
+      itemIndex === index && item.selected && publicFields.has(item.field) && mayPublish(item) ? { ...item, publicShare } : item) });
+  }
+
+  function confirmPublicValue(index: number, publishConfirmed: boolean) {
+    setReview((current) => current && { ...current, items: current.items.map((item, itemIndex) =>
+      itemIndex === index && item.selected && publicFields.has(item.field) ? { ...item, publishConfirmed, publicShare: false } : item) });
+  }
+
+  function carryBaseline(index: number) {
+    setReview((current) => {
+      const baseline = current?.baseline;
+      const item = baseline?.items[index];
+      if (!current || !baseline || !item || !validItem(item)) return current;
+      if (current.items.some((entry) => entry.carriedFrom?.revision === baseline.revision && entry.field === item.field)) return current;
+      const next = current.items.map((entry) => entry.field === item.field ? { ...entry, selected: false, publicShare: false, publishConfirmed: false } : entry);
+      const carriedFrom = { revision: baseline.revision, source: item.carriedFrom?.source ?? baseline.source, fixture: item.carriedFrom?.fixture ?? baseline.fixture };
+      return { ...current, items: [...next, { ...item, selected: true, publicShare: false, publishConfirmed: false, carriedFrom }] };
+    });
   }
 
   function addManualField(field: Field) {
@@ -296,11 +360,32 @@ export default function Home() {
     }
   }
 
+  async function leaveAccount() {
+    if (editingLocked) return;
+    if (hasUnsavedChanges && (text || review) && !window.confirm("Sign out and discard the unsaved work on this screen?")) return;
+    setLoggingOut(true);
+    try {
+      const result = await signOut();
+      if (!result.ok) throw new Error("Sign out failed. Please try again.");
+      contextVersion.current += 1;
+      setText("");
+      setReview(null);
+      setRevisions([]);
+      setSavedDrafts([]);
+      setDraftId(null);
+      setDraftVersion(null);
+      window.location.replace("/auth");
+    } catch {
+      setLoggingOut(false);
+      setSaveMessage("Sign out failed. Your current work is still here.");
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
         <div className="brand" aria-label="JazzLink AI"><span className="brand-mark">J</span><span>jazzlink<span className="brand-ai"> ai</span></span></div>
-        <div className="topbar-right"><Link href="/auth" target="_blank">Sign in ↗</Link><span className="workspace-label">YOUR GIG WORKSPACE</span><span className="prototype-badge"><span /> EARLY PREVIEW</span></div>
+        <div className="topbar-right"><Link href="/auth" target="_blank">Sign in ↗</Link><button className="text-button" type="button" disabled={editingLocked} onClick={leaveAccount}>{loggingOut ? "Signing out…" : "Sign out"}</button><span className="workspace-label">YOUR GIG WORKSPACE</span><span className="prototype-badge"><span /> EARLY PREVIEW</span></div>
       </header>
 
       <div className="page-content">
@@ -323,16 +408,18 @@ export default function Home() {
           <section className="panel input-panel" aria-labelledby="source-title">
             <div className="panel-heading"><div><p className="section-kicker">01 / THE CONVERSATION</p><h2 id="source-title">Start with what you know.</h2></div><span className="panel-icon">✳</span></div>
             <p className="panel-copy">Paste the relevant messages or notes. Keep speaker names and message order when you can.</p>
-            <div className="input-label-row"><label htmlFor="source-text">Conversation or notes</label><button className="text-button" type="button" onClick={() => { if (!text || window.confirm("Replace the text currently in the input with the fictional example?")) { setText(sample); setError(""); } }}>Try a fictional example <span aria-hidden="true">↗</span></button></div>
-            <button className="text-button" type="button" disabled={saving || busy || reviewBusy} onClick={previewSample}>Preview example results without AI ↗</button>
-            <textarea id="source-text" value={text} onChange={(event) => setText(event.target.value)} maxLength={8000} placeholder={"Venue: Can your trio play on November 20?\nMusician: Yes, we can do two sets..."} />
+            <div className="input-label-row"><label htmlFor="source-text">Conversation or notes</label><button className="text-button" type="button" disabled={editingLocked} onClick={() => { if (!text || window.confirm("Replace the text currently in the input with the fictional example?")) { setText(sample); setError(""); } }}>Try a fictional example <span aria-hidden="true">↗</span></button></div>
+            <button className="text-button" type="button" disabled={editingLocked} onClick={previewSample}>Preview example results without AI ↗</button>
+            <textarea id="source-text" value={text} disabled={editingLocked} onChange={(event) => setText(event.target.value)} maxLength={8000} placeholder={"Venue: Can your trio play on November 20?\nMusician: Yes, we can do two sets..."} />
             <div className="input-meta"><span>Only use synthetic or permission-cleared material.</span><span>{text.length.toLocaleString()} / 8,000</span></div>
-            <button className="primary-button" type="button" disabled={busy || !text.trim()} onClick={analyze}>{busy ? "Reviewing your notes…" : "Review gig details"} <span aria-hidden="true">{busy ? "···" : "↗"}</span></button>
-            <div className="draft-actions"><button className="secondary-button" type="button" onClick={saveDraft} disabled={saving || !text.trim()}>{saving ? "Saving…" : "Save private draft"}</button><button className="secondary-button" type="button" onClick={listDrafts}>Open saved drafts</button></div>
+            <button className="primary-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={analyze}>{busy ? "Reviewing your notes…" : "Review gig details"} <span aria-hidden="true">{busy ? "···" : "↗"}</span></button>
+            <button className="text-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={startManualReview}>Review manually without AI ↗</button>
+            <div className="draft-actions"><button className="secondary-button" type="button" onClick={saveDraft} disabled={editingLocked || !text.trim()}>{saving ? "Saving…" : "Save private draft"}</button><button className="secondary-button" type="button" disabled={editingLocked} onClick={listDrafts}>Open saved drafts</button></div>
             {saveMessage && <p className="local-note" role="status">{saveMessage}</p>}
             {savedDrafts.length > 0 && <ul className="saved-drafts">{savedDrafts.map((saved) => <li key={saved.id}><button type="button" disabled={saving || busy || reviewBusy} onClick={() => openDraft(saved)}>{saved.source_text.split("\n")[0].slice(0, 60) || "Untitled draft"} · v{saved.version}</button></li>)}</ul>}
-            {draftId && review && <div className="review-commit"><label><input type="checkbox" checked={reviewAcknowledged} onChange={(event) => setReviewAcknowledged(event.target.checked)} /> I reviewed this saved snapshot, including any unresolved suggestions. This records my review only.</label><div className="draft-actions"><button className="secondary-button" type="button" disabled={!reviewAcknowledged || hasUnsavedChanges || changedSource || reviewBusy} onClick={recordReview}>{reviewBusy ? "Recording…" : "Record my review"}</button><button className="secondary-button" type="button" onClick={loadRevisions}>View review history</button></div>{hasUnsavedChanges && <p className="local-note">Save the current edits before recording your review.</p>}{changedSource && <p className="local-note">Run a fresh review before recording the changed input.</p>}</div>}
-            {revisions.length > 0 && <div className="revision-history"><h3>Review history</h3>{revisions.map((revision) => <details key={revision.id}><summary>Review {revision.revision} · saved draft v{revision.draft_version}</summary><p>Snapshot of your review; suggestions and missing information are not counterparty approval.</p><ul>{revision.draft.review?.items.map((item, index) => <li key={index}>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue || "Unknown"} ({item.manual || item.edited ? "your entry" : labels[item.status]})</li>)}</ul><details><summary>Source at time of review</summary><pre>{revision.source_text}</pre></details></details>)}</div>}
+            {draftId && historyStatus !== "ready" && <p className="warning-note">{historyStatus === "loading" ? "Loading the previous review before analyzing changes…" : "Review history could not be loaded. Retry before analyzing changes."} {historyStatus === "error" && <button type="button" className="text-button" onClick={loadRevisions}>Retry history</button>}</p>}
+            {draftId && review && <div className="review-commit"><label><input type="checkbox" checked={reviewAcknowledged} disabled={editingLocked} onChange={(event) => setReviewAcknowledged(event.target.checked)} /> I reviewed this saved snapshot, including any unresolved suggestions. This records my review only.</label><div className="draft-actions"><button className="secondary-button" type="button" disabled={!reviewAcknowledged || hasUnsavedChanges || changedSource || editingLocked || historyStatus !== "ready"} onClick={recordReview}>{reviewBusy ? "Recording…" : "Record my review"}</button><button className="secondary-button" type="button" disabled={editingLocked || historyStatus === "loading"} onClick={loadRevisions}>View review history</button></div>{hasUnsavedChanges && <p className="local-note">Save the current edits before recording your review.</p>}{changedSource && <p className="local-note">Run a fresh review before recording the changed input.</p>}</div>}
+            {revisions.length > 0 && <div className="revision-history"><h3>Review history</h3>{revisions.map((revision) => <details key={revision.id}><summary>Review {revision.revision} · saved draft v{revision.draft_version}</summary><p>Snapshot of your review; suggestions and missing information are not counterparty approval.</p><ul>{revision.draft.review?.items.map((item, index) => <li key={index}>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue || "Unknown"} ({itemStatus(item)}{item.selected ? "; included in personal terms" : "; not selected"})</li>)}</ul><details><summary>Source at time of review</summary><pre>{revision.source_text}</pre></details></details>)}</div>}
             {review && <p className="local-note">Running a new review replaces the edits currently shown. Save the draft first if needed.</p>}
             <p className="privacy-note"><span aria-hidden="true">◌</span> Your text is sent to the AI provider for analysis. Avoid real personal or contract information in this preview.</p>
             {error && <div className="error-message" role="alert"><strong>Couldn’t complete the review.</strong><p>{error}</p></div>}
@@ -344,26 +431,30 @@ export default function Home() {
               <div className="empty-state"><div className="empty-art"><span>♪</span><i /></div><h3>Let’s get the details in tune.</h3><p>Your extracted details, source quotes, and questions will appear here for you to check.</p><div className="empty-points"><span>✦ &nbsp; Keep track of what was said</span><span>✦ &nbsp; Spot details still missing</span><span>✦ &nbsp; Decide what to ask next</span></div></div>
             ) : (
               <div className="review-content">
-                <p className="review-notice">{review.fixture ? "Example interpretations" : "AI interpretations"} are suggestions, not approval or proof of agreement. Check the original messages and edit anything that’s wrong.</p>
+                <p className="review-notice">{review.manualOnly ? "Your entries" : review.fixture ? "Example interpretations" : "AI interpretations"} are not proof of agreement. Check the original messages and edit anything that’s wrong.</p>
                 {review.fixture && <p className="warning-note">Fictional example with prewritten results. No AI request was made. Use “Review gig details” to request a real analysis after signing in.</p>}
+                {review.manualOnly && <p className="warning-note">Manual review. No AI request was made for this review; add the details you want to check below.</p>}
                 {changedSource && <p className="warning-note" role="status">The input has changed since this review. These suggestions refer to the earlier text shown in their source quotes. Run a new review to update them.</p>}
                 {competingFields.length > 0 && <p className="warning-note" role="status">Multiple values need review for: {competingFields.map((field) => field.label).join(", ")}. A later request does not automatically replace an earlier value.</p>}
-                <div className="review-summary"><div><strong>{review.items.length}</strong><span>details found</span></div><div><strong>{missing.length}</strong><span>fields not found</span></div><div><strong>{concerns.length}</strong><span>suggested for review</span></div></div>
+                <div className="review-summary"><div><strong>{review.items.length}</strong><span>candidate details</span></div><div><strong>{missing.length}</strong><span>fields not selected</span></div><div><strong>{concerns.length}</strong><span>suggested for review</span></div></div>
                 {previousReview && <ChangeReview previous={changeRows(previousReview.items.filter((item) => item.selected))} current={changeRows(review.items)} />}
+                {review.baseline && <div className="baseline-box"><h3>Earlier personal review · revision {review.baseline.revision}</h3><p>These are earlier choices, not automatically carried into the next review. Choose each value you want to keep after checking the new message.</p>{review.baseline.items.length === 0 ? <p>No values were selected in that review.</p> : <ul>{review.baseline.items.map((item, index) => <li key={index}><strong>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue}</strong><span>{itemStatus(item)}</span><button className="secondary-button" type="button" disabled={editingLocked || review.items.some((entry) => entry.carriedFrom?.revision === review.baseline?.revision && entry.field === item.field)} onClick={() => carryBaseline(index)}>Keep this earlier value</button></li>)}</ul>}<details><summary>Earlier source</summary><pre>{review.baseline.source}</pre></details>{review.baseline.fixture && <p>Earlier source was a fictional example with prewritten results.</p>}</div>}
                 {review.items.length > 0 && <div className="detail-list">{review.items.map((item, index) => {
                   const field = fields.find((entry) => entry.key === item.field);
                   return <article className="detail-card" key={item.field + "-" + index}>
                     <div className="detail-top"><div><h3>{field?.label}</h3><span className="field-hint">{field?.hint}</span></div><span className={"status-chip status-" + item.status}>{item.manual ? "Your entry" : labels[item.status]}</span></div>
                     <label className="detail-label" htmlFor={"detail-" + index}>{item.edited ? "Your edit (not saved or approved)" : "AI-suggested value"}</label>
-                    <input id={"detail-" + index} value={item.editedValue} onChange={(event) => updateItem(index, event.target.value)} placeholder="Unknown" />
-                    <label className="select-term"><input type="checkbox" checked={item.selected ?? false} disabled={!validItem(item)} onChange={(event) => selectItem(index, event.target.checked)} /> Include this value in my reviewed terms</label>
-                    {publicFields.has(item.field) && <label className="select-term"><input type="checkbox" checked={item.publicShare ?? false} disabled={!item.selected} onChange={(event) => setPublicShare(index, event.target.checked)} /> Allow this field on the public card</label>}
+                    <input id={"detail-" + index} value={item.editedValue} disabled={editingLocked} onChange={(event) => updateItem(index, event.target.value)} placeholder="Unknown" />
+                    <label className="select-term"><input type="checkbox" checked={item.selected ?? false} disabled={editingLocked || !validItem(item)} onChange={(event) => selectItem(index, event.target.checked)} /> Include this value in my reviewed terms</label>
+                    {publicFields.has(item.field) && item.selected && (item.status !== "stated" || item.edited || item.manual) && <label className="select-term"><input type="checkbox" checked={item.publishConfirmed ?? false} disabled={editingLocked} onChange={(event) => confirmPublicValue(index, event.target.checked)} /> I have separately checked that this is the current value I want to publish, despite its suggestion status. This does not verify the other party’s consent.</label>}
+                    {publicFields.has(item.field) && <label className="select-term"><input type="checkbox" checked={Boolean(item.publicShare && mayPublish(item))} disabled={editingLocked || !item.selected || !mayPublish(item)} onChange={(event) => setPublicShare(index, event.target.checked)} /> Allow this field on the public card</label>}
                     {!validItem(item) && item.editedValue.trim() && <p className="edit-explanation">Use a valid value: dates need YYYY-MM-DD, times use HH:MM, and amounts use USD dollars.</p>}
                     {item.edited && !item.manual && <p className="edit-explanation">Original AI suggestion: {displayValue(item) || "Unknown"}. The source below refers to that suggestion, not your edit.</p>}
-                    {item.manual ? <p className="edit-explanation">Entered by you; no source quote or counterparty approval is attached.</p> : <div className="source-quote"><span>FROM YOUR NOTES</span><blockquote>“{item.quote}”</blockquote></div>}
+                    {item.carriedFrom && <p className="edit-explanation">Carried by you from personal review {item.carriedFrom.revision}.{item.carriedFrom.fixture ? " Earlier source was a fictional example." : ""} It has not been automatically accepted by the other party.</p>}
+                    {item.manual ? <p className="edit-explanation">Entered by you; no source quote or counterparty approval is attached.</p> : <div className="source-quote"><span>{item.carriedFrom ? "FROM AN EARLIER REVIEW" : "FROM YOUR NOTES"}</span><blockquote>“{item.quote}”</blockquote>{item.carriedFrom && <details><summary>Original source</summary><pre>{item.carriedFrom.source}</pre></details>}</div>}
                   </article>;
                 })}</div>}
-                {missing.length > 0 && <div className="missing-box"><div className="box-heading"><span>?</span><div><h3>Still to check</h3><p>Not found in this review. Blank doesn’t mean zero or agreed. Add a value if you know it.</p></div></div><div className="missing-tags">{missing.map((field) => <button type="button" key={field.key} disabled={review.items.some((item) => item.field === field.key)} onClick={() => addManualField(field.key)}>+ {field.label}</button>)}</div></div>}
+                {missing.length > 0 && <div className="missing-box"><div className="box-heading"><span>?</span><div><h3>Still to check</h3><p>These fields have no selected value; some may have unreviewed suggestions above. Blank doesn’t mean zero or agreed. Add your own value if needed.</p></div></div><div className="missing-tags">{missing.map((field) => <button type="button" key={field.key} disabled={editingLocked || review.items.some((item) => item.field === field.key && item.manual)} onClick={() => addManualField(field.key)}>+ {field.label}</button>)}</div></div>}
                 {review.questions.length > 0 && <div className="questions-box"><div className="question-heading"><div><p className="section-kicker">KEEP THE CONVERSATION GOING</p><h3>Questions to consider</h3></div><button className="secondary-button" type="button" onClick={copyQuestions}>Copy questions</button></div><ul>{review.questions.map((question, index) => <li key={index}>{question}</li>)}</ul>{copyMessage && <p className="copy-message" role="status">{copyMessage}</p>}<p className="questions-footnote">Review these first. JazzLink won’t send messages for you.</p></div>}
                 <p className="local-note">{hasUnsavedChanges ? "There are unsaved edits." : "This draft is saved."} No agreement has been confirmed.</p>
               </div>
@@ -372,7 +463,7 @@ export default function Home() {
         </div>
         {previousReview && revisions[0] && <section className="terms-output"><p className="section-kicker">YOUR REVIEWED TERMS · REVISION {revisions[0].revision}</p><h2>Personal review / 개인 검토</h2><p>This is your own review, not a contract or proof of the other party’s approval. Unselected fields remain unresolved.</p><dl>{fields.map((field) => {
           const selected = previousReview.items.find((item) => item.field === field.key && item.selected);
-          return <div key={field.key}><dt>{field.label} / {koreanLabels[field.key]}</dt><dd>{selected?.editedValue || "Not selected / 미선택"}</dd></div>;
+          return <div key={field.key}><dt>{field.label} / {koreanLabels[field.key]}</dt><dd>{selected?.editedValue || "Not selected / 미선택"}{selected && <small> · {itemStatus(selected)}</small>}</dd></div>;
         })}</dl><PublicTermsCard revision={revisions[0].revision} title={publicValue("title")} venue={publicValue("venue")} date={publicValue("date")} artist={publicValue("artist")} sets={publicValue("sets")} ticketCents={publicValue("ticketCents")} /></section>}
         <div className="bottom-note"><span>✳</span><p><strong>Built around your real conversations.</strong> Keep using your existing messenger; you’re always in control of what gets shared.</p></div>
       </div>

@@ -70,6 +70,9 @@ test("validates calendar dates, times and exact USD cents", () => {
   assert.equal(isValidTermValue("date", "2026-11-20"), true);
   assert.equal(isValidTermValue("sets", "20:00, 25:00"), false);
   assert.equal(isValidTermValue("sets", "20:00, 22:00"), true);
+  assert.equal(isValidTermValue("setCount", "2"), true);
+  assert.equal(isValidTermValue("additionalSets", "1"), true);
+  assert.equal(isValidTermValue("additionalSets", "0"), false);
   assert.equal(dollarsToCents("900.00"), 90000);
   assert.equal(dollarsToCents("0"), 0);
   assert.equal(dollarsToCents("0.001"), null);

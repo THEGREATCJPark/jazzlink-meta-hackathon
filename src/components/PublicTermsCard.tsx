@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { validateNewYorkSchedule } from "@/domain/timezone";
 import styles from "./PublicTermsCard.module.css";
 
 /**
@@ -62,7 +63,8 @@ export default function PublicTermsCard({
   const invalidTicket = Boolean(publicTicket && !centsPattern.test(publicTicket));
   const invalidText = [publicTitle, publicVenue, publicArtist].some((value) =>
     Array.from(value).length > 120 || /[\u0000-\u001F\u007F]/.test(value));
-  const canExport = validRevision && !invalidDate && !invalidTime && !invalidTicket && !invalidText;
+  const schedule = validateNewYorkSchedule(publicDate, publicSets);
+  const canExport = validRevision && !invalidDate && !invalidTime && !invalidTicket && !invalidText && schedule.status === "valid";
 
   function downloadCard() {
     if (!canExport || !svgRef.current) return;
@@ -127,6 +129,10 @@ export default function PublicTermsCard({
           {invalidTicket ? "Ticket price must be whole USD cents. " : ""}
           {invalidText ? "Keep title, artist and venue under 120 characters on one line. " : ""}
           {!validRevision ? "A valid reviewed revision is required. " : ""}
+          {schedule.status === "nonexistent" ? "A time does not exist in New York because of a clock change. " : ""}
+          {schedule.status === "ambiguous" ? "A time occurs twice in New York during a clock change; selecting the occurrence is not supported yet. " : ""}
+          {schedule.status === "overnight_date_needed" ? "The set list may cross midnight; dates for individual sets are not supported yet. " : ""}
+          {schedule.status === "unavailable" ? "New York timezone data is unavailable. " : ""}
           Export is disabled until these details are ready.
         </p>
       ) : <p className={styles.note}>Review the card before sharing. A reviewed version is not proof of the other party’s consent.</p>}

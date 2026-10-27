@@ -37,3 +37,10 @@
 - Production deployment after changing the model config reached Ready; anonymous production extraction returns 401 before any provider request.
 - A security review identified direct Data API storage exhaustion risk and a context-switch bug. Added database-enforced per-owner storage limits and UI context reset; real concurrent and authenticated HTTP verification remains outstanding.
 - The database-backed quota limits spend but an authenticated account can consume the shared daily allowance directly through the RPC. Availability and account creation abuse need separate protection before a broad public demo.
+
+## 2026-10-27 — authenticated integration and review fixes
+- A user-provided synthetic test account signed in to production. One fictional conversation was analyzed through the app using Meta, saved privately, reopened after reload and recorded as a personal review.
+- Two authenticated browser tabs opened the same draft; after one saved, the other received the expected stale-version rejection. This was a sequential stale-write check, not a simultaneous-writer test or a second-user isolation test.
+- Independent review found that new-message analysis could lose previously selected terms and uncertain suggestions could be shown without their status. A separate baseline, explicit carry-forward, status-preserving output and public-value recheck are under implementation.
+- Added server-side integer-cent canonicalization and New York DST gap/fold classification. Database money constraints are prepared but remain unapplied pending deployment of the compatible server.
+- Real account credentials are never stored in this repository, test outputs or logs.

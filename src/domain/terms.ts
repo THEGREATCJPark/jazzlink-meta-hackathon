@@ -1,5 +1,5 @@
 /** Pure domain helpers. Authentication, authorisation and atomic persistence belong on the server. */
-export const TERM_FIELDS = ["title", "venue", "date", "artist", "sets", "feeCents", "ticketCents", "paymentTerms"] as const;
+export const TERM_FIELDS = ["title", "venue", "date", "artist", "sets", "setCount", "additionalSets", "feeCents", "ticketCents", "paymentTerms"] as const;
 export type TermField = (typeof TERM_FIELDS)[number];
 export type CandidateStatus = "stated" | "proposed" | "accepted" | "rejected" | "withdrawn" | "unclear";
 
@@ -29,6 +29,7 @@ export function isValidTermValue(field: TermField, value: string): boolean {
   if (field === "feeCents" || field === "ticketCents") {
     return /^(?:0|[1-9]\d*)$/.test(value) && Number.isSafeInteger(Number(value));
   }
+  if (field === "setCount" || field === "additionalSets") return /^[1-9]\d?$/.test(value);
   if (field === "date") {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
     const date = new Date(`${value}T00:00:00Z`);

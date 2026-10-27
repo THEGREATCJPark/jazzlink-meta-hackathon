@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "./server";
+import { canonicalizeDraftMoney } from "../../domain/canonical-draft.ts";
 
 const maxBodyBytes = 128 * 1024;
 
@@ -41,7 +42,9 @@ export async function readDraftBody(request: Request, requiresVersion: boolean) 
     if (typeof body.sourceText !== "string" || body.sourceText.length > 20000) return null;
     if (!body.draft || typeof body.draft !== "object" || Array.isArray(body.draft)) return null;
     if (requiresVersion && (!Number.isSafeInteger(body.version) || (body.version as number) < 1 || (body.version as number) >= 2147483647)) return null;
-    return { sourceText: body.sourceText, draft: body.draft, version: body.version as number | undefined };
+    const canonicalDraft = canonicalizeDraftMoney(body.draft as Record<string, unknown>);
+    if (!canonicalDraft) return null;
+    return { sourceText: body.sourceText, draft: canonicalDraft, version: body.version as number | undefined };
   } catch {
     return null;
   } finally {

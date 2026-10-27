@@ -25,3 +25,10 @@
 - Added fictional prewritten results with an explicit no-AI label; browser verified source quotes, pending proposal, unknown year and unsaved status.
 - Added personal immutable snapshot migration, API and UI with explicit review, idempotent request ID and revision history. Agent reports DB role/version checks; no browser-authenticated test yet. This is not bilateral agreement.
 - Automated unit tests 18, lint and build passed locally. Full live model and authenticated browser flows remain unverified.
+
+## 2026-10-27 — model fallback and evaluation preparation
+- A second 1.3 structured request returned model_not_found (404). A single bounded 1.2 request completed: 228 input tokens, 688 output tokens, 4 candidates, 4 questions. Its source quote validation and expected synthetic fee check passed. This is not an accuracy evaluation.
+- Updated production META_TEXT_MODEL to muse-spark-1.2; a fresh production deployment is required to load this change.
+- Added human selection, separate public-field opt-in, reviewed version comparison and deterministic SVG public card. Card contents derive only from the latest loaded personal snapshot. Authenticated browser and SVG download still need real testing.
+- Prepared a 12-case synthetic holdout and a rollback SQL regression script. Neither has yet been executed as a saved test suite; retain their stated limitations.
+- In a local browser with mocked draft/review HTTP responses, selected a synthetic date and set times, recorded a personal review and downloaded SVG. The public card contained date/times and excluded the private fee. This did not exercise real Auth or database access.

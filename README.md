@@ -10,7 +10,7 @@ A new application for bandleaders: review gig conditions against their source me
 - **Validation target:** at least 30% less active work for change review, clarification and a reviewed terms sheet, at equivalent quality. This is a narrowed measurement scope and has **not been measured or achieved**. See [the plan](docs/PLAN.md).
 
 ## Status
-The deployed early preview contains a text-review workspace, Meta extraction adapter and authenticated private drafts. Locally, personal reviewed snapshots and a clearly labeled no-AI fictional example have also been added. Browser sign-in, save/reload and snapshot flows remain unverified. Participant acknowledgement and public cards are not implemented.
+The deployed early preview contains a text-review workspace, Meta extraction adapter, authenticated private drafts, personal reviewed snapshots, comparison, a deterministic public card and a clearly labeled no-AI fictional example. Browser sign-in, save/reload, snapshot and public-card download flows remain unverified. Participant acknowledgement is not implemented.
 
 ## Scope and precedence
 Latest user instructions take precedence over earlier planning documents:
@@ -27,6 +27,8 @@ The planned Meta adapter runs on the server. Begin with bounded text requests; n
 - [Product and delivery plan](docs/PLAN.md)
 - [Architecture decision](docs/ARCHITECTURE.md)
 - [Account and secret setup](docs/SETUP.md)
+- [Synthetic model evaluation](docs/EVALUATION.md)
+- [Database security regression checks](docs/DB_SECURITY_TESTS.md)
 - [Agent instructions](AGENTS.md)
 
 ## Milestones
@@ -40,7 +42,7 @@ Only synthetic or explicitly authorized assets may enter this public repository.
 
 ## Current prototype
 
-The workspace can submit synthetic text for source-backed AI suggestions and can save private drafts for authenticated accounts once configured. A saved draft or personal review is not an agreement. A real structured extraction attempt returned HTTP 404 even though the model appeared in the account catalog; runtime and user-session verification remain pending. Do not use it for actual agreements or private contracts.
+The workspace can submit synthetic text for source-backed AI suggestions and can save private drafts for authenticated accounts once configured. A saved draft or personal review is not an agreement. An application-adapter structured extraction probe succeeded once with muse-spark-1.2; muse-spark-1.3 returned model_not_found despite appearing in the account catalog. Production runtime and user-session verification remain pending. Do not use it for actual agreements or private contracts.
 
 Requires Node.js 22. Install with `npm ci`, start with `npm run dev`, and verify with `npm run lint`, `npm test`, and `npm run build`. The default CI is offline and does not access secrets.
 

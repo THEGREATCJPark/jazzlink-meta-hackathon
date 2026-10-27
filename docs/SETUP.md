@@ -9,7 +9,7 @@ Updated for planning on 2026-10-27. Account facts below are **previous-session o
 | GitHub | New repository THEGREATCJPark/jazzlink-meta-hackathon, Actions MODEL_API_KEY secret and offline CI | Fresh public-access and submission access checks |
 | Vercel | metacj/jazzlink-meta-hackathon, Hobby, GitHub main linkage and prototype deployment | Runtime Meta request, authenticated app flow, current quota/limits |
 | Supabase | New US East project inlotwlppvrscyjncbbb; private-draft, quota and reviewed-snapshot migrations applied | Auth and actual HTTP/browser user isolation |
-| Meta | Standalone muse-spark-1.3 probe completed previously; structured extraction attempt returned HTTP 404 while the catalog listed the model | Diagnose provider error; structured extraction, app runtime and semantic evaluation |
+| Meta | muse-spark-1.3 previously passed a simple probe but structured extraction returned model_not_found while listed in the catalog. A single structured application-adapter probe succeeded with muse-spark-1.2 (228 input, 688 output tokens). | Production app runtime and semantic evaluation |
 
 Prototype: https://jazzlink-meta-hackathon.vercel.app
 
@@ -23,7 +23,7 @@ A Vercel connector previously returned 403 while the desktop CLI worked. Use the
 | --- | --- |
 | MODEL_API_KEY | GitHub Actions Secret and Vercel Production Secret were reported configured; independent stores. Local availability is not assumed. |
 | MODEL_API_BASE_URL | Vercel Production config previously set to https://api.meta.ai/v1 |
-| META_TEXT_MODEL | Vercel Production config previously set to muse-spark-1.3 |
+| META_TEXT_MODEL | Vercel Production config updated to muse-spark-1.2 after a successful synthetic structured probe; requires a fresh deployment |
 | NEXT_PUBLIC_SUPABASE_URL | Vercel Production config previously set to https://inlotwlppvrscyjncbbb.supabase.co |
 | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | Vercel Production config previously set; publishable does not replace RLS/grants |
 | SUPABASE_SECRET_KEY | Not required for normal session-scoped operations; not provisioned by this plan |

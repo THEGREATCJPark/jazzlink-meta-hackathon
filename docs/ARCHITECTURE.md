@@ -39,7 +39,7 @@ Model calls run outside transactions. Persist source/run identity first. Attach 
 
 ## Model and output strategy
 
-Use configured muse-spark-1.3, with a previously successful standalone text probe. Verify structured-output syntax and production runtime during M0. Schema checks constrain shape; evidence review and state rules constrain action. External material is untrusted data, never tool instructions.
+Use configured muse-spark-1.2: one synthetic structured-output probe passed after 1.3 returned model_not_found. Verify production runtime and accuracy separately. Schema checks constrain shape; evidence review and state rules constrain action. External material is untrusted data, never tool instructions.
 
 Begin with bounded synchronous requests, input/output limits, user/global quotas and limited retries for classified transient failures. Log metadata, not private text or secrets. Provider failure leaves saved work editable. Judge traffic cannot trigger unlimited inference.
 

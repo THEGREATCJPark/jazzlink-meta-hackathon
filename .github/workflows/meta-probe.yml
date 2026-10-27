@@ -29,10 +29,11 @@ jobs:
               body: JSON.stringify({ model, input: 'Reply with the word OK.', max_output_tokens: 128 }),
               signal: AbortSignal.timeout(45000)
             });
-            if (!res.ok) { console.error(`Meta request failed: HTTP ${res.status}`); process.exitCode = 1; return; }
+            if (!res.ok) { const error = await res.json().catch(() => null); const code = error?.error?.code; console.error(JSON.stringify({ status: res.status, code: typeof code === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(code) ? code : null })); process.exitCode = 1; return; }
             const body = await res.json();
             const hasText = Array.isArray(body.output) && body.output.some(item => item.type === 'message' && item.content?.some(part => part.type === 'output_text' && part.text?.trim()));
             console.log(JSON.stringify({ model: body.model, status: body.status, hasText, elapsedMs: Date.now() - started, usage: body.usage ?? null }));
             if (body.status !== 'completed' || !hasText) process.exitCode = 1;
           })().catch(() => { console.error('Request failed or timed out'); process.exitCode = 1; });
           NODE
+

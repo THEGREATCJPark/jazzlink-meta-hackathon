@@ -3,7 +3,7 @@
 A new application for NYC venue operators and musicians: turn agreed gig details into consistent contracts, signatures, posters, and reviewed event listings.
 
 ## Status
-Planning/bootstrap only. No working app, deployment, API integration, or passing product tests is claimed yet.
+An early, manually entered gig-details prototype is deployed. Storage, model integration, contracts, signing, PDF, and posters are not implemented.
 
 ## Scope and precedence
 Latest user instructions take precedence over earlier planning documents:
@@ -37,4 +37,5 @@ The local prototype validates manually entered gig details in memory. It does no
 
 Requires Node.js 22. Install with `npm ci`, start with `npm run dev`, and verify with `npm run lint`, `npm test`, and `npm run build`. The default CI is offline and does not access secrets.
 
-A separately triggered `Meta API connection check` workflow makes exactly one synthetic request using the existing GitHub Actions secret `MODEL_API_KEY`. The operator must enter a model ID available to the account; the workflow reports metadata and status, not the key or response text. GitHub Actions secrets are not available to local development or Vercel. This probe has not yet been run.
+A separately triggered `Meta API connection check` workflow makes exactly one synthetic request using the existing GitHub Actions secret `MODEL_API_KEY`. The operator must enter a model ID available to the account; the workflow reports metadata and status, not the key or response text. GitHub Actions secrets are not available to local development or Vercel. A single probe returned HTTP 404; model access is not verified.
+

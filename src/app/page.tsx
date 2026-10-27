@@ -105,6 +105,9 @@ export default function Home() {
   const presentFields = new Set(review?.items.filter((item) => item.editedValue.trim()).map((item) => item.field) ?? []);
   const missing = fields.filter((field) => !presentFields.has(field.key));
   const concerns = review?.items.filter((item) => item.status === "proposed" || item.status === "unclear") ?? [];
+  const competingFields = fields.filter((field) => new Set((review?.items ?? [])
+    .filter((item) => item.field === field.key && item.editedValue.trim())
+    .map((item) => item.editedValue.trim())).size > 1);
   const hasUnsavedChanges = savedContent !== JSON.stringify({ text, review });
   const previousReview = revisions[0]?.draft.review;
   const publicValue = (field: Field) => {
@@ -333,6 +336,7 @@ export default function Home() {
                 <p className="review-notice">{review.fixture ? "Example interpretations" : "AI interpretations"} are suggestions, not approval or proof of agreement. Check the original messages and edit anything that’s wrong.</p>
                 {review.fixture && <p className="warning-note">Fictional example with prewritten results. No AI request was made. Use “Review gig details” to request a real analysis after signing in.</p>}
                 {changedSource && <p className="warning-note" role="status">The input has changed since this review. These suggestions refer to the earlier text shown in their source quotes. Run a new review to update them.</p>}
+                {competingFields.length > 0 && <p className="warning-note" role="status">Multiple values need review for: {competingFields.map((field) => field.label).join(", ")}. A later request does not automatically replace an earlier value.</p>}
                 <div className="review-summary"><div><strong>{review.items.length}</strong><span>details found</span></div><div><strong>{missing.length}</strong><span>fields not found</span></div><div><strong>{concerns.length}</strong><span>suggested for review</span></div></div>
                 {previousReview && <ChangeReview previous={changeRows(previousReview.items.filter((item) => item.selected))} current={changeRows(review.items)} />}
                 {review.items.length > 0 && <div className="detail-list">{review.items.map((item, index) => {

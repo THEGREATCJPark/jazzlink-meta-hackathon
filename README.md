@@ -29,6 +29,8 @@ The planned Meta adapter runs on the server. Begin with bounded text requests; n
 - [Account and secret setup](docs/SETUP.md)
 - [Synthetic model evaluation](docs/EVALUATION.md)
 - [Database security regression checks](docs/DB_SECURITY_TESTS.md)
+- [Hackathon contribution record](HACKATHON.md)
+- [User study plan](docs/USER_STUDY.md)
 - [Agent instructions](AGENTS.md)
 
 ## Milestones

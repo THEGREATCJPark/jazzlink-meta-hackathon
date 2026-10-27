@@ -1,87 +1,179 @@
-# Product and delivery plan
-Baseline: 2026-10-27. Latest user direction overrides the earlier Firebase-extension plan.
+# JazzLink AI development plan
 
-## Source status
-The prior saved development plan was retrieved. The original full research attachment is not available in the current project file list. Use the recovered product requirements; do not claim the complete original research was re-read.
-Discard earlier directives to preserve React/Vite/Firebase, extend old contract services, reuse existing code, or target the old database.
-API IDs, legal rules, pricing and participant-only submission details require primary-source/account verification before implementation.
+Planning baseline: 2026-10-27, inspected repository HEAD 279c789.
+Status: proposed delivery plan responding to the user's Pro review. Documentation only; planned features are not implemented. This replaces the earlier full-contract/signature/poster target for this planning iteration. Final submission remains user-reviewed.
 
-## Vision, strategy and product — user decisions, 2026-10-27
+## 1. Product decision
 
-### Vision: enduring purpose
-Reduce the administrative burden of preparing and running performances so musicians can spend more time on music and their audiences.
-AI, contracts and posters are means to this purpose, not the vision itself.
+**Vision:** reduce performance administration so musicians spend more time on music and audiences.
 
-### Strategy: initial approach and hypotheses
-- Primary user: NYC bandleaders and freelance musicians who personally coordinate their gigs. Venues are counterparties, not an equally prioritized initial acquisition audience.
-- First problem: repeated clarification caused by missing or ambiguous performance conditions, especially fees, payment dates and set times.
-- Entry point: the musician supplies an existing conversation or notes. The assistant extracts supported facts, identifies gaps/conflicts, and drafts useful clarification questions for human review and copying.
-- Keep negotiation in the existing messenger. Do not require the venue to join a shared negotiation workspace or automatically contact it.
-- The musician brings the venue's reply back into JazzLink. Show changed facts, their sources and remaining questions before human confirmation.
-- Pasted replies and the musician's confirmation do not prove the counterparty's consent. Later signing still requires each party to explicitly approve the same contract version through an authenticated flow.
-- Hypothesis to test: this clarification-and-reply loop reduces active preparation time without inventing terms, adding unnecessary questions, or moving hidden work to the venue.
+**User:** a bandleader personally negotiating gig conditions in an existing messenger.
 
-### Product: hackathon scope to implement
-Keep the complete core journey mandatory: conversation/notes -> review and copy clarification questions -> import reply -> review changes and unresolved conditions -> confirmed GigSpec -> English contract and Korean reference -> two-party signing -> signed PDF -> poster.
-The contract and poster reuse the confirmed conditions; they support the core coordination problem rather than becoming unrelated generators.
-An in-app negotiation chat, automatic messenger sending and musician matching are not required for this journey.
-This is the agreed target product, not a statement that these features are implemented.
+**Problem:** when a new request arrives, determining what was agreed, what was merely proposed, and what needs clarification requires rereading messages and updating inconsistent documents.
 
-### Success criterion: target, not a result
-The user selected **at least 30% less active preparation time than a manual workflow of equivalent quality**, from condition clarification through contract, signing, PDF and poster completion.
-No baseline or savings result has been measured yet. Do not advertise a 30% saving as an achieved fact.
+**Strategy:** import selected messages, inspect extracted conditions beside evidence, review changes, copy clarification questions, and produce a versioned terms sheet after human review. Keep communication in the existing messenger.
 
-Proposed measurement protocol for implementation and later validation:
-- Compare equivalent synthetic gig cases, required outputs and review/signing steps. Include reading, correcting AI mistakes and retries in active work time.
-- Record the musician's active work time as the primary measure. Separately record venue work, external reply waiting and machine processing time; do not hide burden shifted to the counterparty.
-- Calculate reduction as `(manual active time - JazzLink active time) / manual active time * 100` for a completed comparison.
-- Preserve factual accuracy, privacy, explicit approvals and matching signed revisions in both workflows. Incomplete or lower-quality outputs do not count as successful time savings.
-- Record participant count, familiarity, case differences and test order. Use comparable case variants to limit learning effects. Report individual results and limitations rather than extrapolating synthetic trials to all musicians.
-- This measures the full workflow; separately time clarification to test whether the chosen strategy contributes to the result.
+**Submission promise:** show supported conditions, unresolved requests and their impact without automatically turning a request into an agreement.
 
-## Domain and demo conventions
-English is primary; Korean is a reference translation for contract comprehension.
-Synthetic demo: Blue Alley, a fictional NYC venue, a fictional bandleader, USD 900 fee, two sets. Audience ticket price is a different field.
+This is a candidate useful workflow, not a proven competitor-exclusive feature or business moat. The user's firsthand experience is in Korea. New York is the synthetic demo setting, not a validated local customer market.
 
-## Priority
-P0: conversation/notes -> source-backed missing/conflicting fact questions -> human review and copy -> pasted counterparty reply -> reviewed changes -> explicit confirmation -> immutable GigSpec revision.
-P0: English contract and Korean reference; two authenticated parties sign the exact same revision; downloadable PDF and audit events.
-P0: Meta-generated background plus deterministic text, PNG at 1080x1080 and 1080x1920.
-P0 integration gate: SAM cutout attempt; original-photo layout remains usable if unavailable.
-P0: real provider trace, bounded costs/retries, permission checks, failed-job recovery, judge-accessible demo.
-P1: flyer extraction -> source/field review -> approved calendar publication; background editing.
-P1: authorized owned Instagram media only after core flow works.
-P2: musician matching, voice input, additional language references.
-Deferred: city-wide crawling, automatic SNS sending, Tokyo-specific rules, tax automation and motion video.
+## 2. Scope contract
 
-## Data contracts
-GigSpec: id, revision, schemaVersion, owner, parties, venue, local date, IANA timezone, set times/durations, USD amountMinor, payment agreement, negotiated terms, per-field provenance and confirmation.
-PublicGigView: only public title, lineup, location, dates/sets and audience ticket price.
-Artifacts: source revision, payload hash, render version, provider/model, private storage location.
-Separate contract fee from ticket price; unknown amounts are null, not zero.
-Version changes invalidate pending approval/signature actions and mark old posters stale.
+| Must deliver | Gate-controlled additions | Deferred from this submission |
+| --- | --- | --- |
+| Text intake, fictional sample, real server-side Meta extraction | Two authenticated test participants acknowledging the same revision | Legal contract drafting, e-signatures and signed PDF |
+| Source inspection, unknown/conflicting/proposed conditions, human edits | One chat screenshot input path after text reliability gate | Muse Image posters and SAM |
+| Clarification questions for manual copying; reply import | Browser-printable terms sheet | General AI management, matching and venue discovery |
+| Persisted drafts, immutable reviewed snapshots and change comparison | Additional card format | Audio, video matching, market crawling |
+| English terms sheet, aligned Korean reference, deterministic public card | Counterparty review page with manually shared access | Automatic messages/invitations, SNS posts, payments, tax/legal determinations |
+| Auth/ownership, RLS, stale-revision rejection, bounded paid calls | | Additional infrastructure for bonus awards |
+| Isolated judge-accessible synthetic demo and honest evaluation | | |
 
-## Completion gates
-- Text extraction with schema validation and unresolved facts.
-- Signature ownership, expired invitations, concurrent changes and duplicate actions.
-- Signed version remains immutable; PDF retry preserves exact snapshot.
-- Both poster sizes inspected; long names and multilingual glyphs verified.
-- API timeout/429/invalid JSON and malicious caption handling.
-- DST-sensitive local times, currency correctness, private-field exclusion.
-- Core journey succeeds five consecutive times, including refresh and retry.
-- Judge access tested in a fresh browser; demo users/data isolated.
-These are targets, not results.
+Two-account acknowledgement is a delivery target with an October 30 cut gate. If cut, every screen and submission says **musician review only**, never bilateral agreement. The product remains useful without venue onboarding.
 
-## Submission schedule
-Working target from prior planning: official deadline 2026-11-05 11:00 KST; internal submission target 2026-11-04 22:00 KST.
-Oct 27: setup, real API capability probes, schema and hosting.
-Oct 28-30: extraction, contract, signing, PDF.
-Oct 31-Nov 1: poster and integration; P1 only if P0 is stable.
-Nov 2: user review, reliability, feature freeze.
-Nov 3: recording and code freeze.
-Nov 4: README, evaluation evidence, video and submission.
-Participant portal controls actual required fields and video length; obtain those details before final packaging.
+Korean reference uses the same stored values and field IDs. Preserve names, dates and numbers exactly; keep arbitrary original free text visible. Translated free text remains labeled unreviewed until checked. Neither language silently gains legal clauses.
 
-## Human input still needed
-Meta access/credit status; Supabase project and deployment configuration; participant-only submission instructions; incremental spending ceiling.
-Optional: authorized performance assets and review by musicians/venue operators. Synthetic assets are sufficient to begin.
+The public card is a local preview/download, not an automatic post. Only explicitly shareable fields may appear. Missing required public date/time prevents a ready-to-share export; an internal draft preview can show unknowns.
+
+## 3. First end-to-end acceptance story
+
+1. Start a synthetic Blue Alley gig and paste messages. Speaker/order labels are supplied data, not authenticated identity evidence.
+2. Extract two sets, $900 performance fee and stated times. Leave unstated year, duration and payment date unknown. Display each extracted field beside its source message and quote.
+3. Let the musician correct a value with human-edit attribution and save a reviewed snapshot. Unresolved items remain explicit; saving does not mean fully agreed or ready to share.
+4. Import: “Could we start at 9 PM and add another set?” Keep the current snapshot unchanged. Show a pending request; do not infer other set times, duration, fee or acceptance.
+5. Produce grouped clarification questions for manual copying. No external send occurs.
+6. Add a clearly labeled synthetic reply explicitly giving the full new schedule, total fee and remaining terms. Review its evidence and edits, then create a new snapshot.
+7. If M3 passes, each test participant separately acknowledges the identical revision. This records an account action, not verified real-world identity, a legal signature or legal certification.
+8. Render the terms sheet and public card from the selected reviewed revision. Fee-only changes must not expose compensation or falsely imply visible public information changed.
+9. Reload to prove persistence; attempt an action from an older screen to prove stale-revision rejection. Preserve old snapshots and acknowledgement records.
+
+## 4. State and evidence semantics
+
+Keep three independent concepts, not a single confirmed boolean.
+
+| Concept | Meaning | Authority |
+| --- | --- | --- |
+| Model interpretation | Candidate value, proposal/acceptance/rejection/withdrawal interpretation, missing/conflict flags | Untrusted suggestion requiring source review |
+| Musician-reviewed revision | An authenticated musician reviewed this exact snapshot, including unresolved items | Musician only |
+| Both participants acknowledged | Both assigned accounts explicitly acknowledged the same snapshot | Server-authorized revision-specific records |
+
+- Missing is absence, not zero/false or an invented default. A proposal does not change the reviewed snapshot.
+- Acceptance interpreted from pasted text is not in-app counterparty acknowledgement.
+- Human edits record actor and origin; they must not inherit fabricated quotes or imply counterparty consent.
+- Preserve conflicting candidates rather than mechanically choosing the latest message. Message timestamps may themselves be unknown.
+- Acknowledgements remain historical but never transfer to a new revision. Pending requests do not invalidate the previous review.
+- Reviewed snapshots may retain unknowns; the UI lists them and prohibits an unqualified “fully agreed” label.
+- Snapshot creation and acknowledgement require expected-revision checks in an atomic database operation. Unique request keys deduplicate submissions. No model call occurs inside that transaction.
+- Public-field dependency comparison determines whether visible card content needs updating. Every export still records its source revision.
+
+## 5. Milestones and completion evidence
+
+Estimate: 40–55 focused hours, not a promise about user availability. Dates are KST. Reserve approximately 10–12 of those hours for verification, video, documentation and submission preparation.
+
+| Milestone / target | Work | Acceptance evidence |
+| --- | --- | --- |
+| M0 — Oct 27–28, 2–3h | Partial draft/evidence schema; 12 held-out cases; screen flow; verify runtime config and one bounded synthetic request | Actual server response metadata; unknown-friendly schema; no keys in browser/logs |
+| M1 — Oct 28, 6–8h | Auth, migrations/RLS, source storage, Meta adapter, evidence panel, edit/save/reload | Real input becomes saved draft; another user cannot read it; absent year/payment remain absent |
+| M2 — Oct 29, 7–9h | Candidate changes, missing/conflicts, questions, reply import, immutable snapshots and diffs | New request leaves baseline unchanged; reviewed edits create revision; source links work |
+| M3 — Oct 30, 4–6h | Target two-account acknowledgement, assigned roles, atomic version checks and audit | Separate sessions acknowledge same revision; outsider and stale-revision actions fail |
+| M4 — Oct 31, 4–6h | English/Korean sheet, public projection, deterministic card; screenshot only after gate | Private fields absent from public output; exact values consistent; missing public dates block export |
+| M5 — Nov 1–2, 7–9h | Held-out evaluation, failure/security tests, small human comparison, judge access | Results with denominators, critical errors, latency and limits |
+| M6 — Nov 3–4, 10–12h | Three-minute video, README, contribution record, run/demo instructions, submission package | Fresh-browser links work; claims trace to evidence; final submission reviewed with user |
+
+M0 → M1 → M2 is the critical path. M3 can be cut. M4 depends on reviewed snapshots, not bilateral acknowledgement, and must show actual review status. Test-case authoring and submission documentation start early; feature breadth waits.
+
+### First implementation session
+
+1. Read current provider docs and Supabase CLI help; verify configuration without printing values. Use one synthetic application probe before diagnosing failure.
+2. Replace the current all-fields-required draft validator with partial candidates and evidence. Keep currency correctness and add meaningful transition tests.
+3. Build input/evidence/review UI with clearly labeled offline fixtures.
+4. Add real Meta calls and server validation; never deploy an anonymous unbounded paid endpoint as an intermediate step.
+5. Connect authenticated source/draft persistence and prove save/reload and cross-user denial.
+6. Report actual results before adding modalities.
+
+## 6. Screens and implementation boundaries
+
+Four primary views:
+- Gig list / synthetic sample entry.
+- Review workspace: source panel, conditions, missing/conflicts, editable values, clarification questions.
+- Revision comparison: baseline, pending proposals, evidence, human-edited successor and review action.
+- Terms sheet / public card: correct status, revision, Korean reference, download; participant acknowledgement only if enabled.
+
+Keep Next.js/TypeScript, existing Supabase project and Vercel. Meta remains server-only. See [architecture](ARCHITECTURE.md). No new provider account is required for the core.
+
+## 7. Validation before expanding
+
+### Model/semantic evaluation
+
+Freeze a holdout of 8 change/conflict cases and 4 ordinary controls, separate from development cases. Include missing year/payment/duration, partial acceptance, withdrawal, fee vs ticket price, old quotations, conflicting dates/times, speaker ambiguity and instruction-like source text. Cases may have multiple labels.
+
+Proposed development gate, fixed before evaluating:
+- 0 unsupported critical assertions presented as established facts (date, money, agreement status).
+- Surface at least 7/8 predefined change problems.
+- At most 1/4 controls with unnecessary critical warnings.
+- 0 automatic overwrites of reviewed snapshots, even with deliberately wrong model output.
+
+These are targets, not current scores or safety guarantees. Record model/config, fixture version, attempts, latency and tokens. Do not drop failed/timed-out cases. Preserve the first frozen results; changes require a new evaluation version. Default CI is offline; live batches require a fixed call/token budget and explicit manual execution.
+
+### Application/security evaluation
+
+- Anonymous and unrelated authenticated sessions cannot read/mutate private gigs, sources or acknowledgement records through routes or direct Data API access.
+- Test actual grants and RLS; membership cannot be self-assigned.
+- Cannot act for another participant, transfer acknowledgement between revisions or edit immutable snapshots.
+- Concurrent writes cannot silently overwrite each other. Repeated requests do not create duplicate revisions.
+- Late model responses remain bound to their original source/base and are shown as stale when necessary.
+- Timeout, 429, invalid schema/evidence and unavailable model preserve saved work with manual recovery.
+- Integer USD cents, distinct fee/ticket values, DST-aware New York conversion; ambiguous/nonexistent local times require resolution. Never infer an absent year or overnight date.
+- Public allowlist excludes private sources, compensation, payment details and personal contact data.
+- Fresh-browser judge path has isolated synthetic data, quotas and a tested reset path.
+
+### User-value validation
+
+Agent prepares scenarios, interview script and timer/results sheet. User may voluntarily invite 2–3 musicians; no automatic outreach or need for real private messages. Permission-cleared reconstructed cases suffice.
+
+Compare equivalent cases using normal messenger/template or general chatbot versus JazzLink; rotate case order. Include import, review, correction and retries in active time. Separately record counterparty effort, waiting and model time; track missed terms and false confirmations.
+
+The **30% target now applies only to change review, clarification questions and a reviewed terms sheet**, not the former contract/signing/PDF/poster journey.
+Reduction = (baseline active seconds - product active seconds) / baseline active seconds.
+Quality must not regress. Report participant-level results and sample limits. Without human tests, report synthetic evaluation only, not proven time savings or demand.
+
+## 8. Cut rules and risks
+
+| Checkpoint | If failing | Action |
+| --- | --- | --- |
+| Oct 28 night | Real extraction → edit → persistence fails | Drop screenshot and print/export embellishments; fix core |
+| Oct 30 night | Two-account authorization/version path unreliable | Personal review only; remove bilateral claims |
+| Oct 31 | Screenshot evidence inaccurate or unhelpful | Text-only; do not add another unverified modality |
+| Nov 1 night | Proposals repeatedly become established facts | Narrow fields/input; require human status selection; disclose weaker automation |
+| Nov 2 night | Core path works | Feature freeze; defects, evaluation and recording only |
+| Nov 3 | Video/access/reproduction incomplete | Stop enhancements and finish submission package |
+
+Do not add a job platform for already-deferred features. Start with bounded request/response processing. If measured latency is unsuitable, shorten input or explicitly redesign execution; a database status row/background Promise is not a durable queue.
+
+Keep within existing credits and quotas with request limits, per-user quotas and a shared inference budget. No paid plan, subscription or spend beyond granted credits without an explicit cost decision.
+
+## 9. Submission
+
+User-supplied planning deadline: Nov 4, 2026 21:00 America/New_York = Nov 5 11:00 KST. Internal completion target: Nov 4 22:00 KST. Official portal is authoritative.
+
+Three-minute story: original terms → request → evidence-linked pending changes → questions → reviewed reply → new revision/card → stale-action rejection → actual results and limits.
+
+Prepare:
+- Public repo, development history, HACKATHON.md separating event work from earlier JazzLink.
+- Live isolated synthetic demo with fresh-browser access and clear fallback instructions.
+- Accessible three-minute video; label synthetic data and cached/replayed sections.
+- README covering implemented/deferred scope, run steps, actual model use and evaluation.
+- Asset/data permission record and non-legal-product limitations.
+- Draft submission fields; verify exact portal requirements and idea-change rules when accessible. Do not claim the full Official Rules were read from an excerpt.
+
+Final submission and external messaging/posting remain user-reviewed. Never claim unsupported novelty, legal effect, New York demand or time savings.
+
+## 10. Actual status and next action
+
+Implemented locally: text-review UI, partial domain validation, Meta adapter, authenticated draft endpoints, local tests; private-draft and quota migrations applied to the new Supabase project. Pure in-memory change comparison is not yet connected to the UI or database.
+Previously reported: GitHub/Vercel connection and standalone Meta text probe. Structured extraction, browser authentication and saved drafts still need end-to-end verification.
+Planned: immutable reviewed snapshots, connected change comparison, two-party gate, outputs, full evaluation and submission.
+User dependency: first synthetic Supabase Auth account requested for real login verification; no credential values in chat.
+Helpful later: focused hours available, voluntary access to 2–3 musicians, any portal clause restricting idea changes. Never send credential values in chat.
+
+Next implementation milestone: **M0/M1 — source-backed text extraction → human correction → authenticated save/reload**, with cost limits and negative authorization tests.

@@ -1,63 +1,54 @@
-# Setup checklist
-No credentials have been received, tested or deployed.
+# Account and environment status
 
-## 1. Meta
-Create a project-scoped Model API key and confirm credit balance/access.
-GitHub: Settings -> Secrets and variables -> Actions -> New repository secret:
-MODEL_API_KEY
-For runtime, add the same key under the deployment project's server environment variables.
-GitHub secrets are not automatically available in Vercel or this assistant's shell.
-Only a future manually triggered live-check workflow may use this key; ordinary pull requests must not receive it.
-Do not paste key values into chat or commit them.
+Updated for planning on 2026-10-27. Account facts below are **previous-session observations or user reports**, not a new live account audit. This planning session changed no account, credential, database or deployment.
 
-## 2. Supabase
-Create a NEW project for this repository; choose an available US East region.
-Keep the generated database password in your password manager. Do not send it.
-From Project Settings/API configuration obtain:
-- NEXT_PUBLIC_SUPABASE_URL: project URL (public configuration).
-- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishable key, browser-safe only with correct RLS.
-- SUPABASE_SECRET_KEY: privileged server-only key; never public.
-Configure these in Vercel after the project is linked. Do not add a database password or broad account token to Actions now.
-SQL migrations will initially be supplied for execution in the Supabase dashboard. Automate only when needed with scoped credentials.
-Do not create production users or upload real contracts yet.
+## Previously observed
 
-## 3. Vercel
-Have a Vercel account ready. After application bootstrap, import this repository and use Next.js detection.
-Add MODEL_API_KEY and the three Supabase variables above.
-Provide only the project/deployment URL back in chat.
-Git integration avoids requiring a VERCEL_TOKEN in GitHub Actions for the initial deployment.
-Preview environments must use isolated demo data; no production credentials for untrusted PRs.
+| Service | Recorded state | Still requires application verification |
+| --- | --- | --- |
+| GitHub | New repository THEGREATCJPark/jazzlink-meta-hackathon, Actions MODEL_API_KEY secret and offline CI | Fresh public-access and submission access checks |
+| Vercel | metacj/jazzlink-meta-hackathon, Hobby, GitHub main linkage and prototype deployment | Runtime Meta request, authenticated app flow, current quota/limits |
+| Supabase | New US East project inlotwlppvrscyjncbbb; private-draft and quota migrations applied | Auth and actual HTTP/browser user isolation |
+| Meta | Standalone muse-spark-1.3 probe completed with nonempty text; 14 input / 18 output tokens | Structured extraction in app, cost controls and semantic evaluation |
 
-## 4. Non-secret model configuration
-MODEL_API_BASE_URL, META_TEXT_MODEL, META_IMAGE_MODEL, META_SEGMENTATION_MODEL are set after official protocol/model verification.
-APP_URL is set to the verified deployment origin.
-Default locale en-US, currency USD, timezone America/New_York.
-Do not invent model IDs from promotional names.
+Prototype: https://jazzlink-meta-hackathon.vercel.app
 
-## 5. Deferred credentials
-BASETEN_API_KEY: only if P1 is enabled.
-Instagram credentials: only after owned-account integration is selected.
-Durable runner credentials: only after latency/recovery gate.
-No Firebase, OpenAI, Google Maps, email-delivery, payment or e-signature SaaS key is currently requested.
-P0 signing uses authenticated demo parties; do not claim independent certified identity verification.
+The user reported setting Supabase Auth Site URL to that origin. It has not been independently exercised through the application's authentication flow. Add exact callback redirects only when the selected Auth flow needs them; do not assume broad preview wildcards.
 
-## 6. Reply with status, never values
-- Meta key saved in GitHub: yes/no; credits visible: yes/no.
-- Supabase project ready: yes/no; project URL.
-- Vercel account ready: yes/no.
-- Maximum extra spend beyond existing credits.
-- Participant-only submission requirements, excluding personal/authentication data.
+A Vercel connector previously returned 403 while the desktop CLI worked. Use the existing CLI context if needed; do not request repeated connector approval or create a duplicate project. Recheck CLI target/account before changing anything.
 
-Synthetic fixtures can be prepared without user assets. No paid calls until budget/access are resolved.
+## Environment-variable locations
 
-## Verified account state (2026-10-27)
+| Name | Placement and recorded status |
+| --- | --- |
+| MODEL_API_KEY | GitHub Actions Secret and Vercel Production Secret were reported configured; independent stores. Local availability is not assumed. |
+| MODEL_API_BASE_URL | Vercel Production config previously set to https://api.meta.ai/v1 |
+| META_TEXT_MODEL | Vercel Production config previously set to muse-spark-1.3 |
+| NEXT_PUBLIC_SUPABASE_URL | Vercel Production config previously set to https://inlotwlppvrscyjncbbb.supabase.co |
+| NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | Vercel Production config previously set; publishable does not replace RLS/grants |
+| SUPABASE_SECRET_KEY | Not required for normal session-scoped operations; not provisioned by this plan |
+| APP_URL | Verify need/location during implementation; do not assume configured |
+| META_IMAGE_MODEL / META_SEGMENTATION_MODEL | Deferred along with image generation/SAM |
 
-- Supabase project `inlotwlppvrscyjncbbb` is healthy in `us-east-1`; its public schema currently has no app tables.
-- Vercel project `metacj/jazzlink-meta-hackathon` is on Hobby, linked to GitHub repository `THEGREATCJPark/jazzlink-meta-hackathon` and production branch `main`. Its initial prototype is at https://jazzlink-meta-hackathon.vercel.app.
-- The GitHub Actions secret `MODEL_API_KEY` exists. After an initial `model_not_found` and empty catalog, a subsequent catalog listed available models and a synthetic `muse-spark-1.3` request completed with nonempty text (14 input, 18 output tokens). Live image and SAM calls have not been verified.
-- Runtime variables on Vercel have not been configured. A GitHub Actions secret does not populate them. No actual contracts or personal information should be used.
+Never output values from an environment inspection. GitHub secrets cannot be read back and do not automatically populate local or Vercel runtime variables. Do not request a key in chat. Local ignored files and production environment configuration must be handled separately.
 
+No Preview Meta secret or isolated Preview database is assumed. Untrusted pull requests must not gain production credentials. Confirm any local development configuration before making a paid request.
 
-## Auth URL setup
+## Next checks during implementation
 
-The user reported setting the Supabase Auth Site URL to the production application origin on 2026-10-27. This has not been independently read back or exercised through an authentication flow. Add precise redirect URLs after implementing the relevant callback route; do not enable broad preview wildcards by default.
+1. Verify current Vercel CLI target and environment-variable names, not values.
+2. Read current Meta protocol and run one bounded synthetic application probe.
+3. Continue managing changes as migrations and verify applied history only for the new US East project.
+4. Configure the selected Auth flow and test two unrelated users against routes and direct Data API access.
+5. Add screenshot private storage only after that feature's gate passes.
+6. Verify judge access and inference quotas in a fresh browser.
+
+No old Seoul Supabase project or previous JazzLink/Firebase configuration may be altered.
+
+## Cost and user involvement
+
+The user reported $150 Meta credits. A Spend Limit notification is not a guaranteed charge cutoff. Use synthetic data, input/output limits, per-user quotas and a shared call budget. No new paid service or spending beyond credits without a cost decision.
+
+Account setup is sufficient to prepare the text-first implementation, but application readiness is not yet verified. Ask for user action only when an actual login, approval or missing configuration blocks progress, giving the exact page and field names. Never request secrets/passwords/OTP in chat.
+
+No Baseten, Instagram, email-delivery, payment, e-signature, image-processing or durable-runner account is required for the narrowed core.

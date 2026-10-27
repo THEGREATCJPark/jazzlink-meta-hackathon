@@ -1,26 +1,27 @@
 # JazzLink AI — NYC Hackathon Edition
 
-A new application for NYC bandleaders and freelance musicians: clarify gig conditions from existing conversations, then carry confirmed details into contracts, signatures and posters.
+A new application for bandleaders: review gig conditions against their source messages, distinguish requests from reviewed terms, and identify what needs clarification when a gig changes. New York is the fictional demo setting; customer demand there is not yet validated.
 
 ## Product direction
 - **Vision:** less administrative work, more time for music and audiences.
-- **Strategy:** help musicians find missing or ambiguous conditions, prepare clarification questions, and review replies while keeping negotiation in their existing messenger.
-- **Target product:** complete the journey through reviewed conditions, bilingual contract, two-party signing, signed PDF and poster.
-- **Validation target:** at least 30% less active preparation time than equivalent-quality manual work. This target has **not been measured or achieved**. See [the plan](docs/PLAN.md) for the comparison protocol.
+- **Strategy:** inspect source-backed terms and changes, prepare clarification questions, and review replies while keeping negotiation in the existing messenger.
+- **Proposed target product:** conversation → evidence review → unresolved changes/questions → human-reviewed revision → English terms sheet, Korean reference and public information card. Two-account acknowledgement is a gated delivery target, not legal e-signing.
+- **Deferred:** legal contract generation, e-signatures, signed PDFs, AI posters, SAM and general management features.
+- **Validation target:** at least 30% less active work for change review, clarification and a reviewed terms sheet, at equivalent quality. This is a narrowed measurement scope and has **not been measured or achieved**. See [the plan](docs/PLAN.md).
 
 ## Status
-An early, manually entered gig-details prototype is deployed. Storage, model integration, contracts, signing, PDF, and posters are not implemented.
+The previously deployed prototype is a manual form. Locally, a new text-review workspace, Meta extraction adapter, authenticated private draft routes and database migration have been implemented. Live app extraction, browser sign-in and save/reload remain unverified. Immutable reviewed revisions, participant acknowledgement and public cards are not implemented.
 
 ## Scope and precedence
 Latest user instructions take precedence over earlier planning documents:
 - Build from scratch in this repository.
 - Existing JazzLink is conceptual reference only; do not copy its code, database, credentials, deployment, or Firebase architecture.
-- English-first, USD, America/New_York. Korean contract reference remains in scope.
+- English-first, USD, America/New_York. Korean reference to the same reviewed terms remains in the proposed scope.
 - Choose infrastructure for this submission rather than compatibility with the old app.
 
 ## Initial architecture
 Next.js + TypeScript; Supabase Postgres/Auth/Storage; Vercel.
-Meta providers run on the server. Image/PDF jobs persist status and input revision. Durable execution selection is a first-integration gate, not an implemented capability.
+The planned Meta adapter runs on the server. Begin with bounded text requests; no background job service, image generation or PDF pipeline is required for the narrowed core.
 
 ## Documents
 - [Product and delivery plan](docs/PLAN.md)
@@ -29,20 +30,22 @@ Meta providers run on the server. Image/PDF jobs persist status and input revisi
 - [Agent instructions](AGENTS.md)
 
 ## Milestones
-1. Accounts, verified provider calls, schema and deployment smoke check.
-2. Gig extraction and clarification.
-3. Versioned contracts, authenticated two-party signing, PDF.
-4. Poster production with deterministic text.
-5. End-to-end verification, demo recording and submission.
+1. Source-backed text extraction, human correction and authenticated save/reload.
+2. Pending proposals, clarification replies and immutable reviewed revisions.
+3. Revision-specific acknowledgement if its delivery gate passes.
+4. Consistent terms sheets and deterministic public information cards.
+5. Failure/permission checks, evaluation, three-minute demo and submission preparation.
 
 Only synthetic or explicitly authorized assets may enter this public repository. No API keys, signed contracts, addresses, private emails, or participant-only materials.
 
 ## Current prototype
 
-The local prototype validates manually entered gig details in memory. It does not yet save data, call Meta, produce contracts, collect signatures, or render posters. Do not use it for real agreements.
+The local workspace can submit synthetic text for source-backed AI suggestions and can save private drafts for authenticated accounts once configured. A saved draft is not an agreement. Live runtime and user-session verification are still pending; do not use it for actual agreements or private contracts.
 
 Requires Node.js 22. Install with `npm ci`, start with `npm run dev`, and verify with `npm run lint`, `npm test`, and `npm run build`. The default CI is offline and does not access secrets.
 
 A separately triggered `Meta API connection check` workflow makes exactly one synthetic request using the existing GitHub Actions secret `MODEL_API_KEY`. The operator must enter a model ID available to the account; the workflow reports metadata and status, not the key or response text. GitHub Actions secrets are not available to local development or Vercel. A subsequent manual probe completed successfully with `muse-spark-1.3`; application integration remains unfinished.
+
+The separately triggered `Meta structured extraction check` runs one synthetic request through the application adapter. It is manual, uses the Actions secret and reports only non-sensitive metadata; its result must be checked independently. It is not part of ordinary CI.
 
 

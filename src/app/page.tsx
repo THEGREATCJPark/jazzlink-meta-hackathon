@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { dollarsToCents, isValidTermValue } from "@/domain/terms";
 import { ChangeReview } from "@/components/ChangeReview";
@@ -100,6 +100,7 @@ export default function Home() {
   const [reviewAcknowledged, setReviewAcknowledged] = useState(false);
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const contextVersion = useRef(0);
 
   const changedSource = review !== null && review.source !== text;
   const presentFields = new Set(review?.items.filter((item) => item.editedValue.trim()).map((item) => item.field) ?? []);
@@ -154,7 +155,9 @@ export default function Home() {
   }
 
   function openDraft(saved: SavedDraft) {
+    if (saving || busy || reviewBusy) return;
     if (hasUnsavedChanges && (text || review) && !window.confirm("Opening another draft will replace the unsaved work on this screen. Continue?")) return;
+    contextVersion.current += 1;
     const storedReview = saved.draft.review ?? null;
     setText(saved.source_text);
     setReview(storedReview);
@@ -170,13 +173,15 @@ export default function Home() {
 
   async function loadRevisions() {
     if (!draftId) return;
+    const requestedContext = contextVersion.current;
     try {
       const response = await fetch(`/api/revisions?draftId=${encodeURIComponent(draftId)}`, { cache: "no-store" });
       const result = await response.json();
+      if (requestedContext !== contextVersion.current) return;
       if (!response.ok) throw new Error(result.error || "Could not load history.");
       setRevisions(result.revisions);
       setSaveMessage(result.revisions.length ? "Your reviewed snapshots are shown below." : "No reviewed snapshots yet.");
-    } catch (caught) { setSaveMessage(caught instanceof Error ? caught.message : "Could not load history."); }
+    } catch (caught) { if (requestedContext === contextVersion.current) setSaveMessage(caught instanceof Error ? caught.message : "Could not load history."); }
   }
 
   async function recordReview() {
@@ -226,7 +231,9 @@ export default function Home() {
   }
 
   function previewSample() {
+    if (saving || busy || reviewBusy) return;
     if ((text || review) && !window.confirm("Replace the current screen with the fictional sample? Save any work you want to keep first.")) return;
+    contextVersion.current += 1;
     const example = {
       candidates: [
         { field: "venue", value: "Blue Alley", quote: "Blue Alley", status: "stated" },
@@ -240,6 +247,10 @@ export default function Home() {
     setReview({ ...parseResult(example, sample), fixture: true });
     setDraftId(null);
     setDraftVersion(null);
+    setSavedDrafts([]);
+    setRevisions([]);
+    setReviewAcknowledged(false);
+    setReviewRequestId(null);
     setSavedContent("");
     setError("");
     setSaveMessage("");
@@ -313,13 +324,13 @@ export default function Home() {
             <div className="panel-heading"><div><p className="section-kicker">01 / THE CONVERSATION</p><h2 id="source-title">Start with what you know.</h2></div><span className="panel-icon">✳</span></div>
             <p className="panel-copy">Paste the relevant messages or notes. Keep speaker names and message order when you can.</p>
             <div className="input-label-row"><label htmlFor="source-text">Conversation or notes</label><button className="text-button" type="button" onClick={() => { if (!text || window.confirm("Replace the text currently in the input with the fictional example?")) { setText(sample); setError(""); } }}>Try a fictional example <span aria-hidden="true">↗</span></button></div>
-            <button className="text-button" type="button" onClick={previewSample}>Preview example results without AI ↗</button>
+            <button className="text-button" type="button" disabled={saving || busy || reviewBusy} onClick={previewSample}>Preview example results without AI ↗</button>
             <textarea id="source-text" value={text} onChange={(event) => setText(event.target.value)} maxLength={8000} placeholder={"Venue: Can your trio play on November 20?\nMusician: Yes, we can do two sets..."} />
             <div className="input-meta"><span>Only use synthetic or permission-cleared material.</span><span>{text.length.toLocaleString()} / 8,000</span></div>
             <button className="primary-button" type="button" disabled={busy || !text.trim()} onClick={analyze}>{busy ? "Reviewing your notes…" : "Review gig details"} <span aria-hidden="true">{busy ? "···" : "↗"}</span></button>
             <div className="draft-actions"><button className="secondary-button" type="button" onClick={saveDraft} disabled={saving || !text.trim()}>{saving ? "Saving…" : "Save private draft"}</button><button className="secondary-button" type="button" onClick={listDrafts}>Open saved drafts</button></div>
             {saveMessage && <p className="local-note" role="status">{saveMessage}</p>}
-            {savedDrafts.length > 0 && <ul className="saved-drafts">{savedDrafts.map((saved) => <li key={saved.id}><button type="button" onClick={() => openDraft(saved)}>{saved.source_text.split("\n")[0].slice(0, 60) || "Untitled draft"} · v{saved.version}</button></li>)}</ul>}
+            {savedDrafts.length > 0 && <ul className="saved-drafts">{savedDrafts.map((saved) => <li key={saved.id}><button type="button" disabled={saving || busy || reviewBusy} onClick={() => openDraft(saved)}>{saved.source_text.split("\n")[0].slice(0, 60) || "Untitled draft"} · v{saved.version}</button></li>)}</ul>}
             {draftId && review && <div className="review-commit"><label><input type="checkbox" checked={reviewAcknowledged} onChange={(event) => setReviewAcknowledged(event.target.checked)} /> I reviewed this saved snapshot, including any unresolved suggestions. This records my review only.</label><div className="draft-actions"><button className="secondary-button" type="button" disabled={!reviewAcknowledged || hasUnsavedChanges || changedSource || reviewBusy} onClick={recordReview}>{reviewBusy ? "Recording…" : "Record my review"}</button><button className="secondary-button" type="button" onClick={loadRevisions}>View review history</button></div>{hasUnsavedChanges && <p className="local-note">Save the current edits before recording your review.</p>}{changedSource && <p className="local-note">Run a fresh review before recording the changed input.</p>}</div>}
             {revisions.length > 0 && <div className="revision-history"><h3>Review history</h3>{revisions.map((revision) => <details key={revision.id}><summary>Review {revision.revision} · saved draft v{revision.draft_version}</summary><p>Snapshot of your review; suggestions and missing information are not counterparty approval.</p><ul>{revision.draft.review?.items.map((item, index) => <li key={index}>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue || "Unknown"} ({item.manual || item.edited ? "your entry" : labels[item.status]})</li>)}</ul><details><summary>Source at time of review</summary><pre>{revision.source_text}</pre></details></details>)}</div>}
             {review && <p className="local-note">Running a new review replaces the edits currently shown. Save the draft first if needed.</p>}

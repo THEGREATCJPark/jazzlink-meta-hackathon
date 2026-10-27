@@ -23,7 +23,7 @@ A Vercel connector previously returned 403 while the desktop CLI worked. Use the
 | --- | --- |
 | MODEL_API_KEY | GitHub Actions Secret and Vercel Production Secret were reported configured; independent stores. Local availability is not assumed. |
 | MODEL_API_BASE_URL | Vercel Production config previously set to https://api.meta.ai/v1 |
-| META_TEXT_MODEL | Vercel Production config updated to muse-spark-1.2 after a successful synthetic structured probe; requires a fresh deployment |
+| META_TEXT_MODEL | Vercel Production config updated to muse-spark-1.2 after a successful synthetic structured probe; a later production deployment reached Ready. The authenticated runtime call remains unverified. |
 | NEXT_PUBLIC_SUPABASE_URL | Vercel Production config previously set to https://inlotwlppvrscyjncbbb.supabase.co |
 | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | Vercel Production config previously set; publishable does not replace RLS/grants |
 | SUPABASE_SECRET_KEY | Not required for normal session-scoped operations; not provisioned by this plan |

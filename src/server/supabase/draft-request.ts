@@ -11,7 +11,7 @@ export async function authenticatedDraftClient() {
 
 export function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
+  return Boolean(origin && origin === new URL(request.url).origin);
 }
 
 export async function readDraftBody(request: Request, requiresVersion: boolean) {

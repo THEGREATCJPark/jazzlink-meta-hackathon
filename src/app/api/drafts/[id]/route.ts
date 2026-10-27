@@ -25,6 +25,7 @@ export async function PUT(request: Request, context: Context) {
   const { data, error } = await auth.supabase.from("gig_drafts")
     .update({ source_text: body.sourceText, draft: body.draft, version: body.version + 1, updated_at: new Date().toISOString() })
     .eq("id", id).eq("owner_id", auth.userId).eq("version", body.version).select("*").maybeSingle();
+  if (error?.code === "23514") return Response.json({ error: "The draft is invalid or too large to save." }, { status: 400 });
   if (error) return Response.json({ error: "Could not save draft." }, { status: 500 });
   if (!data) return Response.json({ error: "Draft changed or is unavailable. Reload before saving." }, { status: 409 });
   return Response.json({ draft: data }, { headers: { "Cache-Control": "private, no-store" } });

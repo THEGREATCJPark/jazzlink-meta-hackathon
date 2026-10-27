@@ -27,6 +27,8 @@ export async function POST(request: Request) {
     p_confirm_review: body.confirmReview,
   });
   if (error) {
+    if (error.code === "P0001") return Response.json({ error: "Your reviewed snapshot limit has been reached." }, { status: 429 });
+    if (error.code === "23514") return Response.json({ error: "The saved draft is invalid or too large to review." }, { status: 400 });
     if (error.code === "P0002") return Response.json({ error: "Draft not found." }, { status: 404 });
     if (error.code === "40001" || error.code === "23505") {
       return Response.json({ error: "The saved draft changed or was already reviewed. Reload and review it." }, { status: 409 });

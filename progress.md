@@ -32,3 +32,8 @@
 - Added human selection, separate public-field opt-in, reviewed version comparison and deterministic SVG public card. Card contents derive only from the latest loaded personal snapshot. Authenticated browser and SVG download still need real testing.
 - Prepared a 12-case synthetic holdout and a rollback SQL regression script. Neither has yet been executed as a saved test suite; retain their stated limitations.
 - In a local browser with mocked draft/review HTTP responses, selected a synthetic date and set times, recorded a personal review and downloaded SVG. The public card contained date/times and excluded the private fee. This did not exercise real Auth or database access.
+
+## 2026-10-27 — additional guardrails
+- Production deployment after changing the model config reached Ready; anonymous production extraction returns 401 before any provider request.
+- A security review identified direct Data API storage exhaustion risk and a context-switch bug. Added database-enforced per-owner storage limits and UI context reset; real concurrent and authenticated HTTP verification remains outstanding.
+- The database-backed quota limits spend but an authenticated account can consume the shared daily allowance directly through the RPC. Availability and account creation abuse need separate protection before a broad public demo.

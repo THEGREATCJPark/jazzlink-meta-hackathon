@@ -57,3 +57,7 @@ Synthetic fixtures can be prepared without user assets. No paid calls until budg
 - The GitHub Actions secret `MODEL_API_KEY` exists. After an initial `model_not_found` and empty catalog, a subsequent catalog listed available models and a synthetic `muse-spark-1.3` request completed with nonempty text (14 input, 18 output tokens). Live image and SAM calls have not been verified.
 - Runtime variables on Vercel have not been configured. A GitHub Actions secret does not populate them. No actual contracts or personal information should be used.
 
+
+## Auth URL setup
+
+The user reported setting the Supabase Auth Site URL to the production application origin on 2026-10-27. This has not been independently read back or exercised through an authentication flow. Add precise redirect URLs after implementing the relevant callback route; do not enable broad preview wildcards by default.

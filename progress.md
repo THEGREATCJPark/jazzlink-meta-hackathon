@@ -18,3 +18,10 @@
 - Ran offline unit tests and local lint/build; browser shows the expected missing-model-configuration recovery and signed-out draft access rejection. Local model credentials are not assumed.
 - Asked the user to create the first synthetic test account without sharing its password. No external email sent.
 - M2 pure comparison helpers were added, but immutable snapshots are not yet persisted or connected to the screen.
+
+## 2026-10-27 — first deployment and review history
+- Commit 968778b pushed to main; Vercel production deployment reached Ready.
+- One manually triggered synthetic structured Meta request returned HTTP 404. A later read-only model catalog listed muse-spark-1.3; this does not prove structured inference works. Error-code-only diagnostics added for a bounded follow-up.
+- Added fictional prewritten results with an explicit no-AI label; browser verified source quotes, pending proposal, unknown year and unsaved status.
+- Added personal immutable snapshot migration, API and UI with explicit review, idempotent request ID and revision history. Agent reports DB role/version checks; no browser-authenticated test yet. This is not bilateral agreement.
+- Automated unit tests 18, lint and build passed locally. Full live model and authenticated browser flows remain unverified.

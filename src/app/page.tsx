@@ -8,8 +8,9 @@ type Field = "title" | "venue" | "date" | "artist" | "sets" | "feeCents" | "tick
 type Interpretation = "stated" | "proposed" | "accepted" | "rejected" | "withdrawn" | "unclear";
 type Candidate = { field: Field; value: string; quote: string; status: Interpretation };
 type ReviewItem = Candidate & { editedValue: string; edited: boolean; manual: boolean };
-type Review = { source: string; items: ReviewItem[]; questions: string[] };
+type Review = { source: string; items: ReviewItem[]; questions: string[]; fixture?: boolean };
 type SavedDraft = { id: string; source_text: string; draft: { review?: Review | null }; version: number; updated_at: string };
+type SavedRevision = { id: string; revision: number; draft_version: number; source_text: string; draft: { review?: Review | null }; created_at: string };
 
 const fields: { key: Field; label: string; hint: string }[] = [
   { key: "title", label: "Gig title", hint: "Public information" },
@@ -84,6 +85,10 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [savedContent, setSavedContent] = useState("");
+  const [revisions, setRevisions] = useState<SavedRevision[]>([]);
+  const [reviewAcknowledged, setReviewAcknowledged] = useState(false);
+  const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   const changedSource = review !== null && review.source !== text;
   const presentFields = new Set(review?.items.filter((item) => item.editedValue.trim()).map((item) => item.field) ?? []);
@@ -104,6 +109,8 @@ export default function Home() {
       if (!response.ok) throw new Error(result.error || "Could not save your draft.");
       setDraftId(result.draft.id);
       setDraftVersion(result.draft.version);
+      setReviewRequestId(null);
+      setReviewAcknowledged(false);
       setSavedContent(JSON.stringify({ text, review }));
       setSaveMessage("Draft saved privately. This is not an agreement or approval.");
     } catch (caught) {
@@ -131,7 +138,38 @@ export default function Home() {
     setDraftVersion(saved.version);
     setSavedContent(JSON.stringify({ text: saved.source_text, review: storedReview }));
     setSavedDrafts([]);
+    setRevisions([]);
+    setReviewRequestId(null);
+    setReviewAcknowledged(false);
     setSaveMessage("Draft opened. No agreement has been confirmed.");
+  }
+
+  async function loadRevisions() {
+    if (!draftId) return;
+    try {
+      const response = await fetch(`/api/revisions?draftId=${encodeURIComponent(draftId)}`, { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not load history.");
+      setRevisions(result.revisions);
+      setSaveMessage(result.revisions.length ? "Your reviewed snapshots are shown below." : "No reviewed snapshots yet.");
+    } catch (caught) { setSaveMessage(caught instanceof Error ? caught.message : "Could not load history."); }
+  }
+
+  async function recordReview() {
+    if (!draftId || !draftVersion || !reviewAcknowledged || hasUnsavedChanges) return;
+    const requestId = reviewRequestId ?? crypto.randomUUID();
+    setReviewRequestId(requestId);
+    setReviewBusy(true);
+    try {
+      const response = await fetch("/api/revisions", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftId, expectedVersion: draftVersion, requestId, confirmReview: true }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not record review.");
+      setSaveMessage(`Review ${result.revision.revision} saved. This records your review only; it is not a contract or counterparty approval.`);
+      setReviewAcknowledged(false);
+      await loadRevisions();
+    } catch (caught) { setSaveMessage(caught instanceof Error ? caught.message : "Could not record review. Retry to check the same request."); }
+    finally { setReviewBusy(false); }
   }
 
   async function analyze() {
@@ -161,6 +199,26 @@ export default function Home() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function previewSample() {
+    if ((text || review) && !window.confirm("Replace the current screen with the fictional sample? Save any work you want to keep first.")) return;
+    const example = {
+      candidates: [
+        { field: "venue", value: "Blue Alley", quote: "Blue Alley", status: "stated" },
+        { field: "sets", value: "20:00, 22:00", quote: "two sets at 8 PM and 10 PM", status: "stated" },
+        { field: "feeCents", value: "90000", quote: "$900", status: "proposed" },
+        { field: "sets", value: "21:00", quote: "start at 9 PM and add another set", status: "proposed" },
+      ],
+      questions: ["What is the year of the performance?", "What is the total fee if a third set is added?", "What are all the new set times and payment terms?"],
+    };
+    setText(sample);
+    setReview({ ...parseResult(example, sample), fixture: true });
+    setDraftId(null);
+    setDraftVersion(null);
+    setSavedContent("");
+    setError("");
+    setSaveMessage("");
   }
 
   function updateItem(index: number, value: string) {
@@ -215,12 +273,15 @@ export default function Home() {
             <div className="panel-heading"><div><p className="section-kicker">01 / THE CONVERSATION</p><h2 id="source-title">Start with what you know.</h2></div><span className="panel-icon">✳</span></div>
             <p className="panel-copy">Paste the relevant messages or notes. Keep speaker names and message order when you can.</p>
             <div className="input-label-row"><label htmlFor="source-text">Conversation or notes</label><button className="text-button" type="button" onClick={() => { if (!text || window.confirm("Replace the text currently in the input with the fictional example?")) { setText(sample); setError(""); } }}>Try a fictional example <span aria-hidden="true">↗</span></button></div>
+            <button className="text-button" type="button" onClick={previewSample}>Preview example results without AI ↗</button>
             <textarea id="source-text" value={text} onChange={(event) => setText(event.target.value)} maxLength={8000} placeholder={"Venue: Can your trio play on November 20?\nMusician: Yes, we can do two sets..."} />
             <div className="input-meta"><span>Only use synthetic or permission-cleared material.</span><span>{text.length.toLocaleString()} / 8,000</span></div>
             <button className="primary-button" type="button" disabled={busy || !text.trim()} onClick={analyze}>{busy ? "Reviewing your notes…" : "Review gig details"} <span aria-hidden="true">{busy ? "···" : "↗"}</span></button>
             <div className="draft-actions"><button className="secondary-button" type="button" onClick={saveDraft} disabled={saving || !text.trim()}>{saving ? "Saving…" : "Save private draft"}</button><button className="secondary-button" type="button" onClick={listDrafts}>Open saved drafts</button></div>
             {saveMessage && <p className="local-note" role="status">{saveMessage}</p>}
             {savedDrafts.length > 0 && <ul className="saved-drafts">{savedDrafts.map((saved) => <li key={saved.id}><button type="button" onClick={() => openDraft(saved)}>{saved.source_text.split("\n")[0].slice(0, 60) || "Untitled draft"} · v{saved.version}</button></li>)}</ul>}
+            {draftId && review && <div className="review-commit"><label><input type="checkbox" checked={reviewAcknowledged} onChange={(event) => setReviewAcknowledged(event.target.checked)} /> I reviewed this saved snapshot, including any unresolved suggestions. This records my review only.</label><div className="draft-actions"><button className="secondary-button" type="button" disabled={!reviewAcknowledged || hasUnsavedChanges || reviewBusy} onClick={recordReview}>{reviewBusy ? "Recording…" : "Record my review"}</button><button className="secondary-button" type="button" onClick={loadRevisions}>View review history</button></div>{hasUnsavedChanges && <p className="local-note">Save the current edits before recording your review.</p>}</div>}
+            {revisions.length > 0 && <div className="revision-history"><h3>Review history</h3>{revisions.map((revision) => <details key={revision.id}><summary>Review {revision.revision} · saved draft v{revision.draft_version}</summary><p>Snapshot of your review; suggestions and missing information are not counterparty approval.</p><ul>{revision.draft.review?.items.map((item, index) => <li key={index}>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue || "Unknown"} ({item.manual || item.edited ? "your entry" : labels[item.status]})</li>)}</ul><details><summary>Source at time of review</summary><pre>{revision.source_text}</pre></details></details>)}</div>}
             {review && <p className="local-note">Running a new review replaces the edits currently shown. Save the draft first if needed.</p>}
             <p className="privacy-note"><span aria-hidden="true">◌</span> Your text is sent to the AI provider for analysis. Avoid real personal or contract information in this preview.</p>
             {error && <div className="error-message" role="alert"><strong>Couldn’t complete the review.</strong><p>{error}</p></div>}
@@ -232,7 +293,8 @@ export default function Home() {
               <div className="empty-state"><div className="empty-art"><span>♪</span><i /></div><h3>Let’s get the details in tune.</h3><p>Your extracted details, source quotes, and questions will appear here for you to check.</p><div className="empty-points"><span>✦ &nbsp; Keep track of what was said</span><span>✦ &nbsp; Spot details still missing</span><span>✦ &nbsp; Decide what to ask next</span></div></div>
             ) : (
               <div className="review-content">
-                <p className="review-notice">AI interpretations are suggestions, not approval or proof of agreement. Check the original messages and edit anything that’s wrong.</p>
+                <p className="review-notice">{review.fixture ? "Example interpretations" : "AI interpretations"} are suggestions, not approval or proof of agreement. Check the original messages and edit anything that’s wrong.</p>
+                {review.fixture && <p className="warning-note">Fictional example with prewritten results. No AI request was made. Use “Review gig details” to request a real analysis after signing in.</p>}
                 {changedSource && <p className="warning-note" role="status">The input has changed since this review. These suggestions refer to the earlier text shown in their source quotes. Run a new review to update them.</p>}
                 <div className="review-summary"><div><strong>{review.items.length}</strong><span>details found</span></div><div><strong>{missing.length}</strong><span>fields not found</span></div><div><strong>{concerns.length}</strong><span>suggested for review</span></div></div>
                 {review.items.length > 0 && <div className="detail-list">{review.items.map((item, index) => {

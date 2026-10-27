@@ -60,7 +60,10 @@ export async function extractTerms(sourceText: string) {
     throw new MetaError(error instanceof Error && error.name === "TimeoutError" ? "timeout" : "provider");
   }
   if (!response.ok) {
-    console.info(JSON.stringify({ provider: "meta", model, status: response.status, elapsedMs: Date.now() - started }));
+    const failure = await response.json().catch(() => null);
+    const rawCode = failure?.error?.code;
+    const code = typeof rawCode === "string" && /^[a-zA-Z0-9_.-]{1,80}$/.test(rawCode) ? rawCode : null;
+    console.info(JSON.stringify({ provider: "meta", model, status: response.status, code, elapsedMs: Date.now() - started }));
     throw new MetaError("provider");
   }
   const body = await response.json().catch(() => null);

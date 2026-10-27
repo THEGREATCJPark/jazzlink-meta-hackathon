@@ -10,7 +10,7 @@ A new application for bandleaders: review gig conditions against their source me
 - **Validation target:** at least 30% less active work for change review, clarification and a reviewed terms sheet, at equivalent quality. This is a narrowed measurement scope and has **not been measured or achieved**. See [the plan](docs/PLAN.md).
 
 ## Status
-The previously deployed prototype is a manual form. Locally, a new text-review workspace, Meta extraction adapter, authenticated private draft routes and database migration have been implemented. Live app extraction, browser sign-in and save/reload remain unverified. Immutable reviewed revisions, participant acknowledgement and public cards are not implemented.
+The deployed early preview contains a text-review workspace, Meta extraction adapter and authenticated private drafts. Locally, personal reviewed snapshots and a clearly labeled no-AI fictional example have also been added. Browser sign-in, save/reload and snapshot flows remain unverified. Participant acknowledgement and public cards are not implemented.
 
 ## Scope and precedence
 Latest user instructions take precedence over earlier planning documents:
@@ -40,7 +40,7 @@ Only synthetic or explicitly authorized assets may enter this public repository.
 
 ## Current prototype
 
-The local workspace can submit synthetic text for source-backed AI suggestions and can save private drafts for authenticated accounts once configured. A saved draft is not an agreement. Live runtime and user-session verification are still pending; do not use it for actual agreements or private contracts.
+The workspace can submit synthetic text for source-backed AI suggestions and can save private drafts for authenticated accounts once configured. A saved draft or personal review is not an agreement. A real structured extraction attempt returned HTTP 404 even though the model appeared in the account catalog; runtime and user-session verification remain pending. Do not use it for actual agreements or private contracts.
 
 Requires Node.js 22. Install with `npm ci`, start with `npm run dev`, and verify with `npm run lint`, `npm test`, and `npm run build`. The default CI is offline and does not access secrets.
 

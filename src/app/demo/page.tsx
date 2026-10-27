@@ -163,7 +163,8 @@ export default function DemoPage() {
         {!snapshot.usesNewSchedule && <p className={styles.small}>Select the complete new schedule and review it before enabling the card.</p>}
         <PublicTermsCard revision={2} title={original.title} venue={original.venue} artist={original.artist}
           date={snapshot.usesNewSchedule && publicConfirmed ? original.date : undefined}
-          sets={snapshot.usesNewSchedule && publicConfirmed ? snapshot.sets : undefined} />
+          sets={snapshot.usesNewSchedule && publicConfirmed ? snapshot.sets : undefined}
+          setCount={snapshot.usesNewSchedule && publicConfirmed ? String(snapshot.setCount) : undefined} />
         <p className={styles.small}>The card is a local download only. The performance fee, messages and payment details are never passed to it.</p>
       </section>}
     </div>

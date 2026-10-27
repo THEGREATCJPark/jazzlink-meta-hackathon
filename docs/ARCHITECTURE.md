@@ -1,6 +1,14 @@
 # ADR-001: Source-backed gig terms review
 
-Status: proposed narrowed architecture, 2026-10-27. Deployment currently contains a manual prototype; this architecture is not implemented.
+Status: partially implemented, 2026-10-27. The implementation and its current limits are summarized below; later entity and acknowledgement sections describe the proposed architecture, not features already shipped.
+
+## Implemented boundary and verification limits
+
+Authenticated users save private `gig_drafts` and create immutable personal `gig_reviews` with a database-enforced expected draft version, request deduplication and content hash. They do not establish counterparty consent. The application review route and a database trigger check source quote occurrence and carried links against the same draft's immutable history before a new review is inserted; the UI independently checks these links before showing source attribution or exporting that review. A matching quote does not prove its meaning, its author, actual agreement or model use.
+
+The database trigger also applies when an authenticated caller invokes the review RPC directly. It checks new insertions only and leaves historical records unchanged; the application hides the terms and public output of historical reviews with unverifiable links. Checks are bounded to limit database work and can time out on unusually large valid histories. This is not an authenticated identity or tamper-proof provenance guarantee. Canonical money consistency is enforced separately by database constraints on new/updated rows, while historical rows remain untouched.
+
+There is no durable provider-run table, participant acknowledgement, audit-event table or task queue yet. Provider calls are synchronous, limited by database reservations, and are not automatically retried. The public `/demo` uses a synthetic prewritten story without model calls or storage. The production app previously completed one authenticated synthetic Meta extraction; a later GitHub Actions probe using the same model ID returned `model_not_found`, so current reliability is unverified.
 
 ## Stack and authority
 
@@ -39,7 +47,7 @@ Model calls run outside transactions. Persist source/run identity first. Attach 
 
 ## Model and output strategy
 
-Use configured muse-spark-1.2: one synthetic structured-output probe passed after 1.3 returned model_not_found. Verify production runtime and accuracy separately. Schema checks constrain shape; evidence review and state rules constrain action. External material is untrusted data, never tool instructions.
+The configured production model is muse-spark-1.2. One synthetic structured-output probe and one production request passed, but a later GitHub Actions request returned `model_not_found`; the environments use separate credentials. Verify availability and accuracy independently. Schema checks constrain shape; evidence review and state rules constrain action. External material is untrusted data, never tool instructions.
 
 Begin with bounded synchronous requests, input/output limits, user/global quotas and limited retries for classified transient failures. Log metadata, not private text or secrets. Provider failure leaves saved work editable. Judge traffic cannot trigger unlimited inference.
 

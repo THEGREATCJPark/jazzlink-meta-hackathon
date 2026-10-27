@@ -1,19 +1,19 @@
 # Account and environment status
 
-Updated for planning on 2026-10-27. Account facts below are **previous-session observations or user reports**, not a new live account audit. This planning session changed no account, credential, database or deployment.
+Updated 2026-10-27. States below distinguish actual observations from user reports and do not imply continued availability.
 
-## Previously observed
+## Observed state
 
 | Service | Recorded state | Still requires application verification |
 | --- | --- | --- |
 | GitHub | New repository THEGREATCJPark/jazzlink-meta-hackathon, Actions MODEL_API_KEY secret and offline CI | Fresh public-access and submission access checks |
-| Vercel | metacj/jazzlink-meta-hackathon, Hobby, GitHub main linkage and prototype deployment | Runtime Meta request, authenticated app flow, current quota/limits |
-| Supabase | New US East project inlotwlppvrscyjncbbb; private-draft, quota and reviewed-snapshot migrations applied | Auth and actual HTTP/browser user isolation |
-| Meta | muse-spark-1.3 previously passed a simple probe but structured extraction returned model_not_found while listed in the catalog. A single structured application-adapter probe succeeded with muse-spark-1.2 (228 input, 688 output tokens). | Production app runtime and semantic evaluation |
+| Vercel | metacj/jazzlink-meta-hackathon, Hobby, GitHub main linkage and production deployment. One synthetic authenticated runtime request succeeded. | Reliability of current model access, current quota/limits and fresh judge access |
+| Supabase | New US East project inlotwlppvrscyjncbbb; private-draft, quota, reviewed-snapshot, canonical-money and review-evidence migrations applied. One test account saved, reloaded and reviewed a draft. | Actual HTTP/browser isolation between different accounts and simultaneous writers |
+| Meta | A 1.3 simple probe and two 1.2 structured requests (one through the production app) previously succeeded. Structured 1.3, and later a 1.2 change-scenario GitHub Actions request, returned `model_not_found`. A subsequent authenticated GitHub Actions catalog request succeeded but returned an empty list; it previously returned model IDs. GitHub Actions and Vercel use independent secret stores. | Account/model availability in each environment, change-scenario semantics and independent evaluation |
 
 Prototype: https://jazzlink-meta-hackathon.vercel.app
 
-The user reported setting Supabase Auth Site URL to that origin. It has not been independently exercised through the application's authentication flow. Add exact callback redirects only when the selected Auth flow needs them; do not assume broad preview wildcards.
+The user reported setting Supabase Auth Site URL to that origin. A test account completed the application's login flow; exact redirect behavior has not been independently tested. Add exact callback redirects only when the selected Auth flow needs them; do not assume broad preview wildcards.
 
 A Vercel connector previously returned 403 while the desktop CLI worked. Use the existing CLI context if needed; do not request repeated connector approval or create a duplicate project. Recheck CLI target/account before changing anything.
 
@@ -23,7 +23,7 @@ A Vercel connector previously returned 403 while the desktop CLI worked. Use the
 | --- | --- |
 | MODEL_API_KEY | GitHub Actions Secret and Vercel Production Secret were reported configured; independent stores. Local availability is not assumed. |
 | MODEL_API_BASE_URL | Vercel Production config previously set to https://api.meta.ai/v1 |
-| META_TEXT_MODEL | Vercel Production config updated to muse-spark-1.2 after a successful synthetic structured probe; a later production deployment reached Ready. The authenticated runtime call remains unverified. |
+| META_TEXT_MODEL | Vercel Production config set to muse-spark-1.2; one authenticated runtime request succeeded. A later 1.2 probe failed in GitHub Actions, a separate environment. Current access is unresolved. |
 | NEXT_PUBLIC_SUPABASE_URL | Vercel Production config previously set to https://inlotwlppvrscyjncbbb.supabase.co |
 | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | Vercel Production config previously set; publishable does not replace RLS/grants |
 | SUPABASE_SECRET_KEY | Not required for normal session-scoped operations; not provisioned by this plan |
@@ -36,12 +36,11 @@ No Preview Meta secret or isolated Preview database is assumed. Untrusted pull r
 
 ## Next checks during implementation
 
-1. Verify current Vercel CLI target and environment-variable names, not values.
-2. Read current Meta protocol and run one bounded synthetic application probe.
-3. Continue managing changes as migrations and verify applied history only for the new US East project.
-4. Configure the selected Auth flow and test two unrelated users against routes and direct Data API access.
-5. Add screenshot private storage only after that feature's gate passes.
-6. Verify judge access and inference quotas in a fresh browser.
+1. Investigate model availability with official documentation and account status before another bounded synthetic provider call; do not loop on `model_not_found`.
+2. Continue managing changes as migrations and verify applied history only for the new US East project.
+3. Test two unrelated users against routes and direct Data API access, plus simultaneous version conflicts.
+4. Add screenshot private storage only after that feature's gate passes.
+5. Verify judge access and inference quotas in a fresh browser.
 
 No old Seoul Supabase project or previous JazzLink/Firebase configuration may be altered.
 
@@ -49,6 +48,6 @@ No old Seoul Supabase project or previous JazzLink/Firebase configuration may be
 
 The user reported $150 Meta credits. A Spend Limit notification is not a guaranteed charge cutoff. Use synthetic data, input/output limits, per-user quotas and a shared call budget. No new paid service or spending beyond credits without a cost decision.
 
-Account setup is sufficient to prepare the text-first implementation, but application readiness is not yet verified. Ask for user action only when an actual login, approval or missing configuration blocks progress, giving the exact page and field names. Never request secrets/passwords/OTP in chat.
+One synthetic end-to-end app path worked, but model availability, multi-user isolation and submission readiness remain unverified. Ask for user action only when an actual login, approval or missing configuration blocks progress, giving the exact page and field names. Never request secrets/passwords/OTP in chat.
 
 No Baseten, Instagram, email-delivery, payment, e-signature, image-processing or durable-runner account is required for the narrowed core.

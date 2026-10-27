@@ -1,40 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { validateNewYorkSchedule } from "@/domain/timezone";
+import { ticketLabel, validatePublicCard, type PublicCardInput } from "@/domain/public-card";
 import styles from "./PublicTermsCard.module.css";
 
 /**
  * Deliberate public-field allowlist. Callers must construct this object from a
  * human-reviewed revision; never spread a complete gig or model response.
  */
-export type PublicTermsCardProps = {
-  revision: number;
-  title?: string | null;
-  venue?: string | null;
-  date?: string | null;
-  artist?: string | null;
-  sets?: string | null;
-  ticketCents?: string | null;
-};
-
-const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-const setsPattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?:\s*,\s*(?:[01]\d|2[0-3]):[0-5]\d)*$/;
-const centsPattern = /^\d{1,12}$/;
-
-function validDate(value: string) {
-  if (!datePattern.test(value)) return false;
-  const parsed = new Date(value + "T00:00:00Z");
-  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
-}
-
-function ticketLabel(value: string) {
-  if (!value) return "Not specified";
-  if (!centsPattern.test(value)) return "Invalid ticket price";
-  const digits = value.replace(/^0+(?=\d)/, "").padStart(3, "0");
-  const dollars = digits.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return "$" + dollars + "." + digits.slice(-2);
-}
+export type PublicTermsCardProps = PublicCardInput;
 
 function fit(value: string, limit: number, width = 850) {
   return Array.from(value).length > limit ? { textLength: width, lengthAdjust: "spacingAndGlyphs" as const } : {};
@@ -47,6 +21,7 @@ export default function PublicTermsCard({
   date,
   artist,
   sets,
+  setCount,
   ticketCents,
 }: PublicTermsCardProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -57,14 +32,9 @@ export default function PublicTermsCard({
   const publicDate = date?.trim() || "";
   const publicSets = sets?.trim() || "";
   const publicTicket = ticketCents?.trim() || "";
-  const validRevision = Number.isSafeInteger(revision) && revision > 0;
-  const invalidDate = !validDate(publicDate);
-  const invalidTime = publicSets.length > 120 || !setsPattern.test(publicSets);
-  const invalidTicket = Boolean(publicTicket && !centsPattern.test(publicTicket));
-  const invalidText = [publicTitle, publicVenue, publicArtist].some((value) =>
-    Array.from(value).length > 120 || /[\u0000-\u001F\u007F]/.test(value));
-  const schedule = validateNewYorkSchedule(publicDate, publicSets);
-  const canExport = validRevision && !invalidDate && !invalidTime && !invalidTicket && !invalidText && schedule.status === "valid";
+  const { canExport, missingTitle, missingVenue, missingArtist, invalidDate, invalidTime,
+    invalidTicket, invalidText, invalidRevision, invalidSetCount, setCountMismatch, scheduleStatus } =
+    validatePublicCard({ revision, title, venue, artist, date, sets, setCount, ticketCents });
 
   function downloadCard() {
     if (!canExport || !svgRef.current) return;
@@ -87,7 +57,7 @@ export default function PublicTermsCard({
       <div className={styles.heading}>
         <div>
           <p className={styles.kicker}>PUBLIC INFORMATION · REVISION {revision}</p>
-          <h2 id="public-card-title">Your gig, ready to share.</h2>
+          <h2 id="public-card-title">{canExport ? "Your gig, ready to share." : "Preview public gig details."}</h2>
           <p>Preview the public details from this reviewed version. No information is posted automatically.</p>
         </div>
       </div>
@@ -124,15 +94,21 @@ export default function PublicTermsCard({
       </div>
       {!canExport ? (
         <p className={styles.warning} role="status">
+          {missingTitle ? "Add a gig title. " : ""}
+          {missingVenue ? "Add a venue. " : ""}
+          {missingArtist ? "Add an artist or band. " : ""}
           {invalidDate ? "Add a valid date (YYYY-MM-DD). " : ""}
           {invalidTime ? "Add valid set times (24-hour HH:MM, comma-separated). " : ""}
+          {invalidSetCount ? "Total set count must be a whole number from 1 to 99. " : ""}
+          {setCountMismatch ? "The number of set times must match the total set count. " : ""}
           {invalidTicket ? "Ticket price must be whole USD cents. " : ""}
           {invalidText ? "Keep title, artist and venue under 120 characters on one line. " : ""}
-          {!validRevision ? "A valid reviewed revision is required. " : ""}
-          {schedule.status === "nonexistent" ? "A time does not exist in New York because of a clock change. " : ""}
-          {schedule.status === "ambiguous" ? "A time occurs twice in New York during a clock change; selecting the occurrence is not supported yet. " : ""}
-          {schedule.status === "overnight_date_needed" ? "The set list may cross midnight; dates for individual sets are not supported yet. " : ""}
-          {schedule.status === "unavailable" ? "New York timezone data is unavailable. " : ""}
+          {invalidRevision ? "A valid reviewed revision is required. " : ""}
+          {scheduleStatus === "invalid" && !invalidDate && !invalidTime ? "The date or set times cannot be interpreted in New York. " : ""}
+          {scheduleStatus === "nonexistent" ? "A time does not exist in New York because of a clock change. " : ""}
+          {scheduleStatus === "ambiguous" ? "A time occurs twice in New York during a clock change; selecting the occurrence is not supported yet. " : ""}
+          {scheduleStatus === "overnight_date_needed" ? "The set list may cross midnight; dates for individual sets are not supported yet. " : ""}
+          {scheduleStatus === "unavailable" ? "New York timezone data is unavailable. " : ""}
           Export is disabled until these details are ready.
         </p>
       ) : <p className={styles.note}>Review the card before sharing. A reviewed version is not proof of the other party’s consent.</p>}

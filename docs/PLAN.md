@@ -170,10 +170,9 @@ Final submission and external messaging/posting remain user-reviewed. Never clai
 
 ## 10. Actual status and next action
 
-Implemented locally: text-review UI, partial domain validation, Meta adapter, authenticated draft endpoints, local tests; private-draft and quota migrations applied to the new Supabase project. Pure in-memory change comparison is not yet connected to the UI or database.
-Previously reported: GitHub/Vercel connection and standalone Meta text probe. Structured extraction, browser authentication and saved drafts still need end-to-end verification.
-Planned: immutable reviewed snapshots, connected change comparison, two-party gate, outputs, full evaluation and submission.
-User dependency: first synthetic Supabase Auth account requested for real login verification; no credential values in chat.
-Helpful later: focused hours available, voluntary access to 2–3 musicians, any portal clause restricting idea changes. Never send credential values in chat.
+Implemented: text-review UI, Meta adapter, authenticated private drafts, immutable personal review snapshots, change comparison, carry-forward controls, public-card output and an explicitly prewritten offline demo. Relevant migrations are applied to the new Supabase project.
+Verified: one synthetic production extraction, authenticated save/reload and personal review, and a sequential stale-write rejection in two tabs. A later synthetic change probe returned `model_not_found`, so repeatable model availability and change interpretation remain unverified.
+Remaining: two-user HTTP isolation and actual concurrent writes, gated participant acknowledgement if feasible, authenticated output flow, model evaluation, user study and submission materials. None is a verified outcome yet.
+Helpful later: focused hours available, voluntary access to 2–3 musicians, any portal clause restricting idea changes. Never request credential values in chat.
 
-Next implementation milestone: **M0/M1 — source-backed text extraction → human correction → authenticated save/reload**, with cost limits and negative authorization tests.
+Next milestone: **reliable change review and negative authorization checks**, followed by measured evaluation and judge-ready submission evidence.

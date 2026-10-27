@@ -22,3 +22,11 @@ The application reserves before issuing a Meta request, with an authenticated us
 Database constraints and atomic owner counters bound each draft JSON to 128 KiB and each owner to 20 drafts and 100 reviewed snapshots. They do not limit overall account creation, PostgREST request ingress, other storage consumers, or total usage across many accounts. Ordinary authenticated clients cannot delete snapshots; an explicit retention/administration strategy and user-facing limit handling are still needed. The counter trigger assumes normal database trigger execution: privileged maintenance that disables triggers must reconcile counts.
 
 The same underlying rollback checks were run once against the new hackathon project during development; this saved regression file has not itself been re-executed. Default CI remains offline and does not run it.
+
+## Review evidence validation
+
+The new snapshot trigger checks quote occurrence and same-draft history links, including a canonicalized copy of selected historical money. It does not rewrite old rows or prove meaning, speaker identity, approval or AI use. It takes a per-owner advisory lock and has a three-second validation deadline; very large valid histories can time out. This does not protect against unlimited registrations or requests across many owners.
+
+The isolated [PGlite runner](../supabase/tests/review_evidence.pglite.mjs) uses synthetic Auth roles and runs the migrations, regression checks and a bounded stress case. Install `@electric-sql/pglite@0.5.12` in a separate temporary directory, set `JAZZLINK_PGLITE_DIR` to its absolute path, then run `node supabase/tests/review_evidence.pglite.mjs`. The stress fixture uses trigger bypass in the disposable DB only; ordinary regression cases use normal triggers.
+
+The separately reviewed [remote rollback script](../supabase/tests/review_evidence_remote_rollback.sql) ran on 2026-10-27 against the new hackathon project with exactly one test account. It inserted only synthetic rows inside a rolled-back transaction and checked direct RPC evidence rejection, personal-history immutability, old-version rejection and a simulated different-user claim. The user/draft/review counts were unchanged afterward. It simulates PostgreSQL claims and role access; it is not an Auth-issued JWT, PostgREST/HTTP, multi-session race or real-person test.

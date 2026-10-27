@@ -3,7 +3,9 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { dollarsToCents, isValidTermValue } from "@/domain/terms";
-import { mayPublish } from "@/domain/publication";
+import { mayPublish, valueWasEdited } from "@/domain/publication";
+import { checkEvidenceIntegrity } from "@/domain/evidence-integrity";
+import { assessFeeContext } from "@/domain/fee-context";
 import { ChangeReview } from "@/components/ChangeReview";
 import PublicTermsCard from "@/components/PublicTermsCard";
 import { signOut } from "@/app/auth/actions";
@@ -16,7 +18,7 @@ type ReviewItem = Candidate & { editedValue: string; edited: boolean; manual: bo
 type Baseline = { revision: number; source: string; fixture: boolean; items: ReviewItem[] };
 type Review = { source: string; items: ReviewItem[]; questions: string[]; fixture?: boolean; manualOnly?: boolean; baseline?: Baseline };
 type SavedDraft = { id: string; source_text: string; draft: { review?: Review | null }; version: number; updated_at: string };
-type SavedRevision = { id: string; revision: number; draft_version: number; source_text: string; draft: { review?: Review | null }; created_at: string };
+type SavedRevision = { id: string; draft_id: string; revision: number; draft_version: number; source_text: string; draft: { review?: Review | null }; created_at: string };
 
 const fields: { key: Field; label: string; hint: string }[] = [
   { key: "title", label: "Gig title", hint: "Public information" },
@@ -64,8 +66,16 @@ function validItem(item: ReviewItem) {
   return isValidTermValue(item.field, value);
 }
 
+function itemWasEdited(item: ReviewItem) {
+  return valueWasEdited(displayValue(item), item.editedValue, item.edited);
+}
+
+function mayShareItem(item: ReviewItem) {
+  return mayPublish({ ...item, edited: itemWasEdited(item) });
+}
+
 function itemStatus(item: ReviewItem) {
-  const origin = item.manual ? "Your entry" : item.edited ? `Your edit; original suggestion: ${labels[item.status]}` : labels[item.status];
+  const origin = item.manual ? "Your entry" : itemWasEdited(item) ? `Your edit; original suggestion: ${labels[item.status]}` : labels[item.status];
   return item.carriedFrom ? `${origin} · carried from personal review ${item.carriedFrom.revision}` : origin;
 }
 
@@ -94,11 +104,27 @@ function parseResult(data: unknown, source: string): Review {
   return { source, items, questions: data.questions as string[] };
 }
 
+function feeContextFor(review: Review | null | undefined) {
+  const baseline = review?.baseline;
+  if (!review || !baseline) return null;
+  const previous = (field: Field) => baseline.items.find((item) => item.field === field)?.editedValue.trim() ?? null;
+  const oldFee = previous("feeCents");
+  const isEarlierValue = (item: ReviewItem) => Boolean(item.carriedFrom) &&
+    (item.field !== "feeCents" || (oldFee !== null && item.editedValue.trim() === oldFee));
+  return assessFeeContext({
+    previous: { sets: previous("sets"), setCount: previous("setCount") },
+    candidates: review.items.map((item) => ({ field: item.field, value: item.editedValue, status: item.status,
+      selected: item.selected === true, fromPreviousReview: isEarlierValue(item) })),
+    carriedFeeSelected: review.items.some((item) => item.field === "feeCents" && item.selected && isEarlierValue(item)),
+  });
+}
+
 export default function Home() {
   const [text, setText] = useState("");
   const [review, setReview] = useState<Review | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [freshModelReview, setFreshModelReview] = useState(false);
   const [copyMessage, setCopyMessage] = useState("");
   const [draftId, setDraftId] = useState<string | null>(null);
   const [draftVersion, setDraftVersion] = useState<number | null>(null);
@@ -111,10 +137,10 @@ export default function Home() {
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [showReviewConfirm, setShowReviewConfirm] = useState(false);
+  const [pendingReview, setPendingReview] = useState<"ai" | "manual" | null>(null);
   const [historyStatus, setHistoryStatus] = useState<"ready" | "loading" | "error">("ready");
   const contextVersion = useRef(0);
-  const editingLocked = busy || saving || reviewBusy || loggingOut || showReviewConfirm;
+  const editingLocked = busy || saving || reviewBusy || loggingOut || pendingReview !== null;
 
   const changedSource = review !== null && review.source !== text;
   const selectedFields = new Set(review?.items.filter((item) => item.selected && validItem(item)).map((item) => item.field) ?? []);
@@ -125,15 +151,23 @@ export default function Home() {
     .map((item) => item.editedValue.trim())).size > 1);
   const hasUnsavedChanges = savedContent !== JSON.stringify({ text, review });
   const previousReview = revisions[0]?.draft.review;
+  const snapshotEvidence = previousReview && revisions[0] && draftId ? checkEvidenceIntegrity({
+    draftId, sourceText: revisions[0].source_text, review: previousReview, revisions, currentRevision: revisions[0].revision,
+  }) : null;
+  const currentEvidence = review && historyStatus === "ready" ? checkEvidenceIntegrity({
+    draftId: draftId ?? "unsaved", sourceText: review.source, review, revisions,
+  }) : null;
+  const feeContext = feeContextFor(review);
+  const reviewedFeeContext = feeContextFor(previousReview);
   const publicValue = (field: Field) => {
-    const item = previousReview?.items.find((entry) => entry.field === field && entry.selected && entry.publicShare && validItem(entry) && mayPublish(entry));
+    const item = previousReview?.items.find((entry) => entry.field === field && entry.selected && entry.publicShare && validItem(entry) && mayShareItem(entry));
     if (!item) return undefined;
     if (field === "ticketCents") return typeof item.amountCents === "number" && Number.isSafeInteger(item.amountCents) ? String(item.amountCents) : undefined;
     return item.editedValue.trim();
   };
   const changeRows = (items: ReviewItem[]) => items.map((item) => ({ field: item.field,
     label: fields.find((field) => field.key === item.field)?.label ?? item.field,
-    value: item.editedValue, status: item.manual || item.edited ? "Your entry" : item.status }));
+    value: item.editedValue, status: item.manual || itemWasEdited(item) ? "Your entry" : item.status }));
 
   async function saveDraft() {
     if (busy || saving || reviewBusy) return;
@@ -176,6 +210,7 @@ export default function Home() {
     const storedReview = saved.draft.review ?? null;
     setText(saved.source_text);
     setReview(storedReview);
+    setFreshModelReview(false);
     setDraftId(saved.id);
     setDraftVersion(saved.version);
     setSavedContent(JSON.stringify({ text: saved.source_text, review: storedReview }));
@@ -206,7 +241,7 @@ export default function Home() {
   }
 
   async function recordReview() {
-    if (!draftId || !draftVersion || !reviewAcknowledged || hasUnsavedChanges || changedSource || busy || saving || historyStatus !== "ready") return;
+    if (!draftId || !draftVersion || !reviewAcknowledged || hasUnsavedChanges || changedSource || busy || saving || historyStatus !== "ready" || !currentEvidence?.ok) return;
     const requestId = reviewRequestId ?? crypto.randomUUID();
     setReviewRequestId(requestId);
     setReviewBusy(true);
@@ -227,7 +262,7 @@ export default function Home() {
     const submitted = text;
     const requestedContext = contextVersion.current;
     const latest = revisions[0];
-    const baseline: Baseline | undefined = latest?.draft.review ? {
+    const baseline: Baseline | undefined = latest?.draft.review && snapshotEvidence?.ok ? {
       revision: latest.revision,
       source: latest.draft.review.source,
       fixture: latest.draft.review.fixture === true,
@@ -253,6 +288,7 @@ export default function Home() {
       const result = parseResult(await response.json(), submitted);
       if (requestedContext !== contextVersion.current) return;
       setReview({ ...result, baseline });
+      setFreshModelReview(true);
     } catch (caught) {
       if (requestedContext === contextVersion.current) setError(caught instanceof Error ? caught.message : "Analysis is unavailable. Your text is still here.");
     } finally {
@@ -262,22 +298,28 @@ export default function Home() {
 
   function requestAnalysis() {
     if (editingLocked || !text.trim()) return;
-    if (review) setShowReviewConfirm(true);
+    if (review) setPendingReview("ai");
     else void analyze();
   }
 
   function startManualReview() {
-    if (!text.trim() || editingLocked || historyStatus !== "ready") return;
-    if (review && !window.confirm("Start a manual review and replace the edits currently shown? Save first if you need them.")) return;
+    if (!text.trim() || busy || saving || reviewBusy || loggingOut || historyStatus !== "ready") return;
     const latest = revisions[0];
-    const baseline: Baseline | undefined = latest?.draft.review ? {
+    const baseline: Baseline | undefined = latest?.draft.review && snapshotEvidence?.ok ? {
       revision: latest.revision,
       source: latest.draft.review.source,
       fixture: latest.draft.review.fixture === true,
       items: structuredClone(latest.draft.review.items.filter((item) => item.selected)),
     } : undefined;
     setReview({ source: text, items: [], questions: [], manualOnly: true, baseline });
+    setFreshModelReview(false);
     setError("");
+  }
+
+  function requestManualReview() {
+    if (editingLocked || !text.trim() || historyStatus !== "ready") return;
+    if (review) setPendingReview("manual");
+    else startManualReview();
   }
 
   function previewSample() {
@@ -297,6 +339,7 @@ export default function Home() {
     };
     setText(sample);
     setReview({ ...parseResult(example, sample), fixture: true });
+    setFreshModelReview(false);
     setDraftId(null);
     setDraftVersion(null);
     setSavedDrafts([]);
@@ -329,7 +372,7 @@ export default function Home() {
 
   function setPublicShare(index: number, publicShare: boolean) {
     setReview((current) => current && { ...current, items: current.items.map((item, itemIndex) =>
-      itemIndex === index && item.selected && publicFields.has(item.field) && mayPublish(item) ? { ...item, publicShare } : item) });
+      itemIndex === index && item.selected && publicFields.has(item.field) && mayShareItem(item) ? { ...item, publicShare } : item) });
   }
 
   function confirmPublicValue(index: number, publishConfirmed: boolean) {
@@ -345,7 +388,8 @@ export default function Home() {
       if (current.items.some((entry) => entry.carriedFrom?.revision === baseline.revision && entry.field === item.field)) return current;
       const next = current.items.map((entry) => entry.field === item.field ? { ...entry, selected: false, publicShare: false, publishConfirmed: false } : entry);
       const carriedFrom = { revision: baseline.revision, source: item.carriedFrom?.source ?? baseline.source, fixture: item.carriedFrom?.fixture ?? baseline.fixture };
-      return { ...current, items: [...next, { ...item, selected: true, publicShare: false, publishConfirmed: false, carriedFrom }] };
+      const selected = item.field !== "feeCents" || !feeContextFor(current)?.scheduleChangeRisk;
+      return { ...current, items: [...next, { ...item, selected, publicShare: false, publishConfirmed: false, carriedFrom }] };
     });
   }
 
@@ -419,13 +463,13 @@ export default function Home() {
             <textarea id="source-text" value={text} disabled={editingLocked} onChange={(event) => setText(event.target.value)} maxLength={8000} placeholder={"Venue: Can your trio play on November 20?\nMusician: Yes, we can do two sets..."} />
             <div className="input-meta"><span>Only use synthetic or permission-cleared material.</span><span>{text.length.toLocaleString()} / 8,000</span></div>
             <button className="primary-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={requestAnalysis}>{busy ? "Reviewing your notes…" : "Review gig details"} <span aria-hidden="true">{busy ? "···" : "↗"}</span></button>
-            {showReviewConfirm && <div className="review-confirm" role="alertdialog" aria-labelledby="review-confirm-title" aria-describedby="review-confirm-description"><h3 id="review-confirm-title">Start a new review?</h3><p id="review-confirm-description">The current suggestions on this screen will be replaced. Your saved drafts and review history remain available.</p><div className="draft-actions"><button className="secondary-button" type="button" onClick={() => setShowReviewConfirm(false)}>Cancel</button><button className="secondary-button" type="button" onClick={() => { setShowReviewConfirm(false); void analyze(); }}>Replace and analyze</button></div></div>}
-            <button className="text-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={startManualReview}>Review manually without AI ↗</button>
+            {pendingReview && <div className="review-confirm" role="alertdialog" aria-labelledby="review-confirm-title" aria-describedby="review-confirm-description"><h3 id="review-confirm-title">Start a new review?</h3><p id="review-confirm-description">The current suggestions on this screen will be replaced. Your saved drafts and review history remain available.</p><div className="draft-actions"><button className="secondary-button" type="button" onClick={() => setPendingReview(null)}>Cancel</button><button className="secondary-button" type="button" onClick={() => { const mode = pendingReview; setPendingReview(null); if (mode === "ai") void analyze(); else startManualReview(); }}>{pendingReview === "ai" ? "Replace and analyze" : "Replace and review manually"}</button></div></div>}
+            <button className="text-button" type="button" disabled={editingLocked || historyStatus !== "ready" || !text.trim()} onClick={requestManualReview}>Review manually without AI ↗</button>
             <div className="draft-actions"><button className="secondary-button" type="button" onClick={saveDraft} disabled={editingLocked || !text.trim()}>{saving ? "Saving…" : "Save private draft"}</button><button className="secondary-button" type="button" disabled={editingLocked} onClick={listDrafts}>Open saved drafts</button></div>
             {saveMessage && <p className="local-note" role="status">{saveMessage}</p>}
             {savedDrafts.length > 0 && <ul className="saved-drafts">{savedDrafts.map((saved) => <li key={saved.id}><button type="button" disabled={saving || busy || reviewBusy} onClick={() => openDraft(saved)}>{saved.source_text.split("\n")[0].slice(0, 60) || "Untitled draft"} · v{saved.version}</button></li>)}</ul>}
             {draftId && historyStatus !== "ready" && <p className="warning-note">{historyStatus === "loading" ? "Loading the previous review before analyzing changes…" : "Review history could not be loaded. Retry before analyzing changes."} {historyStatus === "error" && <button type="button" className="text-button" onClick={loadRevisions}>Retry history</button>}</p>}
-            {draftId && review && <div className="review-commit"><label><input type="checkbox" checked={reviewAcknowledged} disabled={editingLocked} onChange={(event) => setReviewAcknowledged(event.target.checked)} /> I reviewed this saved snapshot, including any unresolved suggestions. This records my review only.</label><div className="draft-actions"><button className="secondary-button" type="button" disabled={!reviewAcknowledged || hasUnsavedChanges || changedSource || editingLocked || historyStatus !== "ready"} onClick={recordReview}>{reviewBusy ? "Recording…" : "Record my review"}</button><button className="secondary-button" type="button" disabled={editingLocked || historyStatus === "loading"} onClick={loadRevisions}>View review history</button></div>{hasUnsavedChanges && <p className="local-note">Save the current edits before recording your review.</p>}{changedSource && <p className="local-note">Run a fresh review before recording the changed input.</p>}</div>}
+            {draftId && review && <div className="review-commit"><label><input type="checkbox" checked={reviewAcknowledged} disabled={editingLocked} onChange={(event) => setReviewAcknowledged(event.target.checked)} /> I reviewed this saved snapshot, including any unresolved suggestions. This records my review only.</label><div className="draft-actions"><button className="secondary-button" type="button" disabled={!reviewAcknowledged || hasUnsavedChanges || changedSource || editingLocked || historyStatus !== "ready" || !currentEvidence?.ok} onClick={recordReview}>{reviewBusy ? "Recording…" : "Record my review"}</button><button className="secondary-button" type="button" disabled={editingLocked || historyStatus === "loading"} onClick={loadRevisions}>View review history</button></div>{hasUnsavedChanges && <p className="local-note">Save the current edits before recording your review.</p>}{changedSource && <p className="local-note">Run a fresh review before recording the changed input.</p>}{currentEvidence && !currentEvidence.ok && <p className="warning-note">Source links could not be verified. Start a new review from the current text; saved history is not changed.</p>}</div>}
             {revisions.length > 0 && <div className="revision-history"><h3>Review history</h3>{revisions.map((revision) => <details key={revision.id}><summary>Review {revision.revision} · saved draft v{revision.draft_version}</summary><p>Snapshot of your review; suggestions and missing information are not counterparty approval.</p><ul>{revision.draft.review?.items.map((item, index) => <li key={index}>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue || "Unknown"} ({itemStatus(item)}{item.selected ? "; included in personal terms" : "; not selected"})</li>)}</ul><details><summary>Source at time of review</summary><pre>{revision.source_text}</pre></details></details>)}</div>}
             {review && <p className="local-note">Running a new review replaces the edits currently shown. Save the draft first if needed.</p>}
             <p className="privacy-note"><span aria-hidden="true">◌</span> Your text is sent to the AI provider for analysis. Avoid real personal or contract information in this preview.</p>
@@ -438,27 +482,30 @@ export default function Home() {
               <div className="empty-state"><div className="empty-art"><span>♪</span><i /></div><h3>Let’s get the details in tune.</h3><p>Your extracted details, source quotes, and questions will appear here for you to check.</p><div className="empty-points"><span>✦ &nbsp; Keep track of what was said</span><span>✦ &nbsp; Spot details still missing</span><span>✦ &nbsp; Decide what to ask next</span></div></div>
             ) : (
               <div className="review-content">
-                <p className="review-notice">{review.manualOnly ? "Your entries" : review.fixture ? "Example interpretations" : "AI interpretations"} are not proof of agreement. Check the original messages and edit anything that’s wrong.</p>
+                <p className="review-notice">{review.manualOnly ? "Your entries" : review.fixture ? "Example interpretations" : freshModelReview ? "AI interpretations" : "Saved interpretations"} are not proof of agreement. Check the original messages and edit anything that’s wrong.</p>
                 {review.fixture && <p className="warning-note">Fictional example with prewritten results. No AI request was made. Use “Review gig details” to request a real analysis after signing in.</p>}
                 {review.manualOnly && <p className="warning-note">Manual review. No AI request was made for this review; add the details you want to check below.</p>}
                 {changedSource && <p className="warning-note" role="status">The input has changed since this review. These suggestions refer to the earlier text shown in their source quotes. Run a new review to update them.</p>}
+                {currentEvidence && !currentEvidence.ok && <p className="warning-note" role="alert">At least one quote or earlier-review link could not be verified. Source labels and review recording are disabled for this view. Start a new review from the current text.</p>}
+                {feeContext?.scheduleChangeRisk && <p className="warning-note" role="status">The schedule has a change or open request. Check the fee for that schedule separately; an earlier fee is not automatically carried to new terms.</p>}
+                {feeContext?.previousFeeApplicability === "needs_reconfirmation" && <p className="warning-note" role="status">The selected earlier fee may not apply to the changed schedule. Its application and the other party’s agreement remain unconfirmed.</p>}
                 {competingFields.length > 0 && <p className="warning-note" role="status">Multiple values need review for: {competingFields.map((field) => field.label).join(", ")}. A later request does not automatically replace an earlier value.</p>}
                 <div className="review-summary"><div><strong>{review.items.length}</strong><span>candidate details</span></div><div><strong>{missing.length}</strong><span>fields not selected</span></div><div><strong>{concerns.length}</strong><span>suggested for review</span></div></div>
-                {previousReview && <ChangeReview previous={changeRows(previousReview.items.filter((item) => item.selected))} current={changeRows(review.items)} />}
-                {review.baseline && <div className="baseline-box"><h3>Earlier personal review · revision {review.baseline.revision}</h3><p>These are earlier choices, not automatically carried into the next review. Choose each value you want to keep after checking the new message.</p>{review.baseline.items.length === 0 ? <p>No values were selected in that review.</p> : <ul>{review.baseline.items.map((item, index) => <li key={index}><strong>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue}</strong><span>{itemStatus(item)}</span><button className="secondary-button" type="button" disabled={editingLocked || review.items.some((entry) => entry.carriedFrom?.revision === review.baseline?.revision && entry.field === item.field)} onClick={() => carryBaseline(index)}>Keep this earlier value</button></li>)}</ul>}<details><summary>Earlier source</summary><pre>{review.baseline.source}</pre></details>{review.baseline.fixture && <p>Earlier source was a fictional example with prewritten results.</p>}</div>}
+                {previousReview && snapshotEvidence?.ok && <ChangeReview previous={changeRows(previousReview.items.filter((item) => item.selected))} current={changeRows(review.items)} />}
+                {review.baseline && currentEvidence?.ok && <div className="baseline-box"><h3>Earlier personal review · revision {review.baseline.revision}</h3><p>These are earlier choices, not automatically carried into the next review. Choose each value you want to keep after checking the new message.</p>{review.baseline.items.length === 0 ? <p>No values were selected in that review.</p> : <ul>{review.baseline.items.map((item, index) => <li key={index}><strong>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue}</strong><span>{itemStatus(item)}</span><button className="secondary-button" type="button" disabled={editingLocked || review.items.some((entry) => entry.carriedFrom?.revision === review.baseline?.revision && entry.field === item.field)} onClick={() => carryBaseline(index)}>{item.field === "feeCents" && feeContext?.scheduleChangeRisk ? "Bring earlier fee for checking" : "Keep this earlier value"}</button></li>)}</ul>}<details><summary>Earlier source</summary><pre>{review.baseline.source}</pre></details>{review.baseline.fixture && <p>Earlier source was a fictional example with prewritten results.</p>}</div>}
                 {review.items.length > 0 && <div className="detail-list">{review.items.map((item, index) => {
                   const field = fields.find((entry) => entry.key === item.field);
                   return <article className="detail-card" key={item.field + "-" + index}>
                     <div className="detail-top"><div><h3>{field?.label}</h3><span className="field-hint">{field?.hint}</span></div><span className={"status-chip status-" + item.status}>{item.manual ? "Your entry" : labels[item.status]}</span></div>
-                    <label className="detail-label" htmlFor={"detail-" + index}>{item.edited ? "Your edit (not saved or approved)" : "AI-suggested value"}</label>
+                    <label className="detail-label" htmlFor={"detail-" + index}>{itemWasEdited(item) ? "Your edit (not saved or approved)" : freshModelReview && !item.carriedFrom ? "AI-suggested value" : "Suggested value"}</label>
                     <input id={"detail-" + index} value={item.editedValue} disabled={editingLocked} onChange={(event) => updateItem(index, event.target.value)} placeholder="Unknown" />
                     <label className="select-term"><input type="checkbox" checked={item.selected ?? false} disabled={editingLocked || !validItem(item)} onChange={(event) => selectItem(index, event.target.checked)} /> Include this value in my reviewed terms</label>
-                    {publicFields.has(item.field) && item.selected && (item.status !== "stated" || item.edited || item.manual) && <label className="select-term"><input type="checkbox" checked={item.publishConfirmed ?? false} disabled={editingLocked} onChange={(event) => confirmPublicValue(index, event.target.checked)} /> I have separately checked that this is the current value I want to publish, despite its suggestion status. This does not verify the other party’s consent.</label>}
-                    {publicFields.has(item.field) && <label className="select-term"><input type="checkbox" checked={Boolean(item.publicShare && mayPublish(item))} disabled={editingLocked || !item.selected || !mayPublish(item)} onChange={(event) => setPublicShare(index, event.target.checked)} /> Allow this field on the public card</label>}
+                    {publicFields.has(item.field) && item.selected && (item.status !== "stated" || itemWasEdited(item) || item.manual) && <label className="select-term"><input type="checkbox" checked={item.publishConfirmed ?? false} disabled={editingLocked} onChange={(event) => confirmPublicValue(index, event.target.checked)} /> I have separately checked that this is the current value I want to publish, despite its suggestion status. This does not verify the other party’s consent.</label>}
+                    {publicFields.has(item.field) && <label className="select-term"><input type="checkbox" checked={Boolean(item.publicShare && mayShareItem(item))} disabled={editingLocked || !item.selected || !mayShareItem(item)} onChange={(event) => setPublicShare(index, event.target.checked)} /> Allow this field on the public card</label>}
                     {!validItem(item) && item.editedValue.trim() && <p className="edit-explanation">Use a valid value: dates need YYYY-MM-DD, times use HH:MM, and amounts use USD dollars.</p>}
-                    {item.edited && !item.manual && <p className="edit-explanation">Original AI suggestion: {displayValue(item) || "Unknown"}. The source below refers to that suggestion, not your edit.</p>}
-                    {item.carriedFrom && <p className="edit-explanation">Carried by you from personal review {item.carriedFrom.revision}.{item.carriedFrom.fixture ? " Earlier source was a fictional example." : ""} It has not been automatically accepted by the other party.</p>}
-                    {item.manual ? <p className="edit-explanation">Entered by you; no source quote or counterparty approval is attached.</p> : <div className="source-quote"><span>{item.carriedFrom ? "FROM AN EARLIER REVIEW" : "FROM YOUR NOTES"}</span><blockquote>“{item.quote}”</blockquote>{item.carriedFrom && <details><summary>Original source</summary><pre>{item.carriedFrom.source}</pre></details>}</div>}
+                    {itemWasEdited(item) && !item.manual && <p className="edit-explanation">Original suggestion: {displayValue(item) || "Unknown"}. The source refers to that suggestion, not your edit.</p>}
+                    {item.carriedFrom && currentEvidence?.ok && <p className="edit-explanation">Carried by you from personal review {item.carriedFrom.revision}.{item.carriedFrom.fixture ? " Earlier source was a fictional example." : ""} It has not been automatically accepted by the other party.</p>}
+                    {item.manual ? <p className="edit-explanation">Entered by you; no source quote or counterparty approval is attached.</p> : currentEvidence?.ok ? <div className="source-quote"><span>{item.carriedFrom ? "FROM AN EARLIER REVIEW" : "FROM YOUR NOTES"}</span><blockquote>“{item.quote}”</blockquote>{item.carriedFrom && <details><summary>Original source</summary><pre>{item.carriedFrom.source}</pre></details>}</div> : <p className="warning-note">Source link is not verified.</p>}
                   </article>;
                 })}</div>}
                 {missing.length > 0 && <div className="missing-box"><div className="box-heading"><span>?</span><div><h3>Still to check</h3><p>These fields have no selected value; some may have unreviewed suggestions above. Blank doesn’t mean zero or agreed. Add your own value if needed.</p></div></div><div className="missing-tags">{missing.map((field) => <button type="button" key={field.key} disabled={editingLocked || review.items.some((item) => item.field === field.key && item.manual)} onClick={() => addManualField(field.key)}>+ {field.label}</button>)}</div></div>}
@@ -468,10 +515,11 @@ export default function Home() {
             )}
           </section>
         </div>
-        {previousReview && revisions[0] && <section className="terms-output"><p className="section-kicker">YOUR REVIEWED TERMS · REVISION {revisions[0].revision}</p><h2>Personal review / 개인 검토</h2><p>This is your own review, not a contract or proof of the other party’s approval. Unselected fields remain unresolved.</p><dl>{fields.map((field) => {
+        {previousReview && revisions[0] && snapshotEvidence?.ok && <section className="terms-output"><p className="section-kicker">YOUR REVIEWED TERMS · REVISION {revisions[0].revision}</p><h2>Personal review / 개인 검토</h2><p>This is your own review, not a contract or proof of the other party’s approval. Unselected fields remain unresolved.</p>{reviewedFeeContext?.previousFeeApplicability === "needs_reconfirmation" && <p className="warning-note">The earlier fee’s application to the changed schedule is unconfirmed. Review it with the other party.</p>}<dl>{fields.map((field) => {
           const selected = previousReview.items.find((item) => item.field === field.key && item.selected);
           return <div key={field.key}><dt>{field.label} / {koreanLabels[field.key]}</dt><dd>{selected?.editedValue || "Not selected / 미선택"}{selected && <small> · {itemStatus(selected)}</small>}</dd></div>;
-        })}</dl><PublicTermsCard revision={revisions[0].revision} title={publicValue("title")} venue={publicValue("venue")} date={publicValue("date")} artist={publicValue("artist")} sets={publicValue("sets")} ticketCents={publicValue("ticketCents")} /></section>}
+        })}</dl><PublicTermsCard revision={revisions[0].revision} title={publicValue("title")} venue={publicValue("venue")} date={publicValue("date")} artist={publicValue("artist")} sets={publicValue("sets")} setCount={previousReview.items.find((item) => item.field === "setCount" && item.selected && validItem(item))?.editedValue} ticketCents={publicValue("ticketCents")} /></section>}
+        {previousReview && snapshotEvidence && !snapshotEvidence.ok && <p className="warning-note" role="alert">The latest saved review has an unverifiable source link. Its terms sheet and public card are hidden; its history has not been changed. Start a new review from the current text.</p>}
         <div className="bottom-note"><span>✳</span><p><strong>Built around your real conversations.</strong> Keep using your existing messenger; you’re always in control of what gets shared.</p></div>
       </div>
       <footer><span>JAZZLINK AI</span><span>NEW YORK · USD · AMERICA/NEW_YORK</span><span>EARLY PREVIEW · FICTIONAL DATA</span></footer>

@@ -48,9 +48,10 @@ export async function POST(request: Request) {
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const kind = error instanceof MetaError ? error.kind : "provider";
-    const message = kind === "invalid_output" ? "The response could not be verified against the source. Please review or try again."
+    const message = kind === "model_unavailable" ? "The configured AI model is unavailable. Your text and current review are still here; you can continue with manual review."
+      : kind === "invalid_output" ? "The response could not be verified against the source. Please review or try again."
       : kind === "timeout" ? "The AI request timed out. Your text is still here."
         : "AI extraction is temporarily unavailable. Your text is still here.";
-    return Response.json({ error: message }, { status: 502 });
+    return Response.json({ error: message }, { status: kind === "model_unavailable" ? 503 : 502 });
   }
 }

@@ -23,6 +23,10 @@ test("provider adapter sends a bounded, stateless request and validates source e
     assert.equal(result.candidates[0].value, "90000");
     quote = "not present";
     await assert.rejects(() => extractTerms(source), (error: unknown) => error instanceof MetaError && error.kind === "invalid_output");
+    globalThis.fetch = async () => Response.json({ error: { code: "model_not_found" } }, { status: 404 });
+    await assert.rejects(() => extractTerms(source), (error: unknown) => error instanceof MetaError && error.kind === "model_unavailable");
+    globalThis.fetch = async () => Response.json({ error: { code: "another_error" } }, { status: 404 });
+    await assert.rejects(() => extractTerms(source), (error: unknown) => error instanceof MetaError && error.kind === "provider");
   } finally {
     globalThis.fetch = originalFetch;
     for (const name of ["MODEL_API_KEY", "META_TEXT_MODEL", "MODEL_API_BASE_URL"]) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { dollarsToCents, isValidTermValue } from "@/domain/terms";
 import { mayPublish, valueWasEdited } from "@/domain/publication";
@@ -137,6 +137,14 @@ export default function Home() {
   const [reviewRequestId, setReviewRequestId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [session, setSession] = useState<"checking" | "signed-in" | "signed-out" | "unavailable">("checking");
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/drafts", { cache: "no-store", signal: controller.signal })
+      .then((response) => setSession(response.ok ? "signed-in" : response.status === 401 ? "signed-out" : "unavailable"))
+      .catch(() => { if (!controller.signal.aborted) setSession("unavailable"); });
+    return () => controller.abort();
+  }, []);
   const [pendingReview, setPendingReview] = useState<"ai" | "manual" | null>(null);
   const [historyStatus, setHistoryStatus] = useState<"ready" | "loading" | "error">("ready");
   const contextVersion = useRef(0);
@@ -144,8 +152,8 @@ export default function Home() {
 
   const changedSource = review !== null && review.source !== text;
   const selectedFields = new Set(review?.items.filter((item) => item.selected && validItem(item)).map((item) => item.field) ?? []);
-  const missing = fields.filter((field) => !selectedFields.has(field.key));
-  const concerns = review?.items.filter((item) => item.status === "proposed" || item.status === "unclear") ?? [];
+  const missing = fields.filter((field) => !(review?.items.some((item) => item.field === field.key && item.editedValue.trim())));
+  const unreviewed = fields.filter((field) => !selectedFields.has(field.key) && review?.items.some((item) => item.field === field.key && item.editedValue.trim()));
   const competingFields = fields.filter((field) => new Set((review?.items ?? [])
     .filter((item) => item.field === field.key && item.editedValue.trim())
     .map((item) => item.editedValue.trim())).size > 1);
@@ -262,6 +270,10 @@ export default function Home() {
     const submitted = text;
     const requestedContext = contextVersion.current;
     const latest = revisions[0];
+    if ((draftId && !draftVersion) || (latest && (!latest.draft.review || !snapshotEvidence?.ok || !draftId || !draftVersion))) {
+      setError("The latest personal review could not be verified. Reload the draft and its history before starting a new review.");
+      return;
+    }
     const baseline: Baseline | undefined = latest?.draft.review && snapshotEvidence?.ok ? {
       revision: latest.revision,
       source: latest.draft.review.source,
@@ -275,7 +287,7 @@ export default function Home() {
       const response = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: submitted }),
+        body: JSON.stringify({ text: submitted, ...(draftId && draftVersion ? { context: { draftId, expectedVersion: draftVersion, expectedRevision: latest?.revision ?? 0 } } : {}) }),
       });
       if (!response.ok) {
         let detail = response.status === 401 ? "Sign in is required to review your notes. Your text is still here." : "Analysis is unavailable right now. Your text is still here; please try again.";
@@ -305,6 +317,10 @@ export default function Home() {
   function startManualReview() {
     if (!text.trim() || busy || saving || reviewBusy || loggingOut || historyStatus !== "ready") return;
     const latest = revisions[0];
+    if ((draftId && !draftVersion) || (latest && (!latest.draft.review || !snapshotEvidence?.ok || !draftId || !draftVersion))) {
+      setError("The latest personal review could not be verified. Reload the draft and its history before starting a new review.");
+      return;
+    }
     const baseline: Baseline | undefined = latest?.draft.review && snapshotEvidence?.ok ? {
       revision: latest.revision,
       source: latest.draft.review.source,
@@ -435,23 +451,19 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand" aria-label="JazzLink AI"><span className="brand-mark">J</span><span>jazzlink<span className="brand-ai"> ai</span></span></div>
-        <div className="topbar-right"><Link href="/demo">Try demo ↗</Link><Link href="/auth" target="_blank">Sign in ↗</Link><button className="text-button" type="button" disabled={editingLocked} onClick={leaveAccount}>{loggingOut ? "Signing out…" : "Sign out"}</button><span className="workspace-label">YOUR GIG WORKSPACE</span><span className="prototype-badge"><span /> EARLY PREVIEW</span></div>
+        <div className="topbar-right"><Link href="/demo">Try demo ↗</Link>{session === "signed-out" && <Link href="/auth">Sign in ↗</Link>}{session === "signed-in" && <button className="text-button" type="button" disabled={editingLocked} onClick={leaveAccount}>{loggingOut ? "Signing out…" : "Sign out"}</button>}{session === "checking" && <span className="session-label">Checking session…</span>}{session === "unavailable" && <span className="session-label">Session unavailable · <Link href="/auth">Sign in</Link></span>}<span className="prototype-badge"><span /> EARLY PREVIEW</span></div>
       </header>
 
       <div className="page-content">
         <div className="intro">
-          <div>
-            <p className="eyebrow"><span className="eyebrow-line" /> LESS ADMIN. MORE MUSIC.</p>
-            <h1>Make every gig<br /><em>clearer.</em></h1>
-            <p className="intro-copy">Turn scattered messages into a clearer picture of your gig. See what was said, what changed, and what to ask next.</p>
-          </div>
-          <aside className="intro-note"><span className="note-icon">✳</span><p>Made for the people<br /><strong>behind the music.</strong></p></aside>
+          <div><p className="eyebrow"><span className="eyebrow-line" /> YOUR GIG WORKSPACE</p>
+            <h1>Make every gig <em>clearer.</em></h1>
+            <p className="intro-copy">See what changed, what needs a closer look, and what to ask next.</p></div>
         </div>
-
         <div className="steps" aria-label="Workflow steps">
-          <div className="step step-active"><span>01</span><div><strong>Bring the conversation</strong><small>Paste messages or notes</small></div></div>
-          <div className="step"><span>02</span><div><strong>Review the details</strong><small>Check each source</small></div></div>
-          <div className="step"><span>03</span><div><strong>Clarify what’s missing</strong><small>Keep the conversation going</small></div></div>
+          <div className="step step-active"><span>01</span><div><strong>Bring the conversation</strong></div></div>
+          <div className="step"><span>02</span><div><strong>Inspect the changes</strong></div></div>
+          <div className="step"><span>03</span><div><strong>Record your review</strong></div></div>
         </div>
 
         <div className="workspace">
@@ -485,31 +497,36 @@ export default function Home() {
                 <p className="review-notice">{review.manualOnly ? "Your entries" : review.fixture ? "Example interpretations" : freshModelReview ? "AI interpretations" : "Saved interpretations"} are not proof of agreement. Check the original messages and edit anything that’s wrong.</p>
                 {review.fixture && <p className="warning-note">Fictional example with prewritten results. No AI request was made. Use “Review gig details” to request a real analysis after signing in.</p>}
                 {review.manualOnly && <p className="warning-note">Manual review. No AI request was made for this review; add the details you want to check below.</p>}
+                {review.questions.length > 0 && <div className="questions-box"><div className="question-heading"><div><p className="section-kicker">KEEP THE CONVERSATION GOING</p><h3>Questions to consider</h3></div><button className="secondary-button" type="button" onClick={copyQuestions}>Copy questions</button></div><ul>{review.questions.map((question, index) => <li key={index}>{question}</li>)}</ul>{copyMessage && <p className="copy-message" role="status">{copyMessage}</p>}<p className="questions-footnote">Review these first. JazzLink won’t send messages for you.</p></div>}
                 {changedSource && <p className="warning-note" role="status">The input has changed since this review. These suggestions refer to the earlier text shown in their source quotes. Run a new review to update them.</p>}
                 {currentEvidence && !currentEvidence.ok && <p className="warning-note" role="alert">At least one quote or earlier-review link could not be verified. Source labels and review recording are disabled for this view. Start a new review from the current text.</p>}
                 {feeContext?.scheduleChangeRisk && <p className="warning-note" role="status">The schedule has a change or open request. Check the fee for that schedule separately; an earlier fee is not automatically carried to new terms.</p>}
                 {feeContext?.previousFeeApplicability === "needs_reconfirmation" && <p className="warning-note" role="status">The selected earlier fee may not apply to the changed schedule. Its application and the other party’s agreement remain unconfirmed.</p>}
                 {competingFields.length > 0 && <p className="warning-note" role="status">Multiple values need review for: {competingFields.map((field) => field.label).join(", ")}. A later request does not automatically replace an earlier value.</p>}
-                <div className="review-summary"><div><strong>{review.items.length}</strong><span>candidate details</span></div><div><strong>{missing.length}</strong><span>fields not selected</span></div><div><strong>{concerns.length}</strong><span>suggested for review</span></div></div>
+                <div className="review-summary"><div><strong>{review.items.length}</strong><span>candidate details</span></div><div><strong>{missing.length}</strong><span>without a value</span></div><div><strong>{unreviewed.length}</strong><span>fields to review</span></div></div>
                 {previousReview && snapshotEvidence?.ok && <ChangeReview previous={changeRows(previousReview.items.filter((item) => item.selected))} current={changeRows(review.items)} />}
-                {review.baseline && currentEvidence?.ok && <div className="baseline-box"><h3>Earlier personal review · revision {review.baseline.revision}</h3><p>These are earlier choices, not automatically carried into the next review. Choose each value you want to keep after checking the new message.</p>{review.baseline.items.length === 0 ? <p>No values were selected in that review.</p> : <ul>{review.baseline.items.map((item, index) => <li key={index}><strong>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue}</strong><span>{itemStatus(item)}</span><button className="secondary-button" type="button" disabled={editingLocked || review.items.some((entry) => entry.carriedFrom?.revision === review.baseline?.revision && entry.field === item.field)} onClick={() => carryBaseline(index)}>{item.field === "feeCents" && feeContext?.scheduleChangeRisk ? "Bring earlier fee for checking" : "Keep this earlier value"}</button></li>)}</ul>}<details><summary>Earlier source</summary><pre>{review.baseline.source}</pre></details>{review.baseline.fixture && <p>Earlier source was a fictional example with prewritten results.</p>}</div>}
-                {review.items.length > 0 && <div className="detail-list">{review.items.map((item, index) => {
+                {review.baseline && currentEvidence?.ok && <details className="baseline-box"><summary>Keep values from earlier personal review · revision {review.baseline.revision}</summary><p>These are earlier choices, not automatically carried into the next review. Choose each value you want to keep after checking the new message.</p>{review.baseline.items.length === 0 ? <p>No values were selected in that review.</p> : <ul>{review.baseline.items.map((item, index) => <li key={index}><strong>{fields.find((field) => field.key === item.field)?.label}: {item.editedValue}</strong><span>{itemStatus(item)}</span><button className="secondary-button" type="button" disabled={editingLocked || review.items.some((entry) => entry.carriedFrom?.revision === review.baseline?.revision && entry.field === item.field)} onClick={() => carryBaseline(index)}>{item.field === "feeCents" && feeContext?.scheduleChangeRisk ? "Bring earlier fee for checking" : "Keep this earlier value"}</button></li>)}</ul>}<details><summary>Earlier source</summary><pre>{review.baseline.source}</pre></details>{review.baseline.fixture && <p>Earlier source was a fictional example with prewritten results.</p>}</details>}
+                {unreviewed.length > 0 && <div className="missing-box"><div className="box-heading"><span>?</span><div><h3>Suggestions to review</h3><p>There are suggested values for {unreviewed.map((field) => field.label).join(", ")}, but none is selected for your review.</p></div></div></div>}
+                {missing.length > 0 && <div className="missing-box"><div className="box-heading"><span>?</span><div><h3>No value provided</h3><p>No value is shown for these fields. Add one if you know it; a blank does not mean zero or agreement.</p></div></div><div className="missing-tags">{missing.map((field) => <button type="button" key={field.key} disabled={editingLocked || review.items.some((item) => item.field === field.key && item.manual)} onClick={() => addManualField(field.key)}>+ {field.label}</button>)}</div></div>}
+                {review.items.length > 0 && <><h3 className="details-heading">Review individual values</h3><p className="details-intro">Open a value to check its source, edit it, or include it in your review.</p><div className="detail-list">{review.items.map((item, index) => {
                   const field = fields.find((entry) => entry.key === item.field);
-                  return <article className="detail-card" key={item.field + "-" + index}>
-                    <div className="detail-top"><div><h3>{field?.label}</h3><span className="field-hint">{field?.hint}</span></div><span className={"status-chip status-" + item.status}>{item.manual ? "Your entry" : labels[item.status]}</span></div>
+                  return <details className="detail-card" open={item.manual || undefined} key={item.field + "-" + index}>
+                    <summary className="detail-top"><span><strong>{field?.label}</strong><span className="detail-preview">{item.editedValue || "No value entered"}{item.selected ? " · Included in your review" : " · Not selected"}</span></span><span className={"status-chip status-" + item.status}>{item.manual ? "Your entry" : labels[item.status]}</span></summary>
+                    <p className="field-hint">{field?.hint}</p>
                     <label className="detail-label" htmlFor={"detail-" + index}>{itemWasEdited(item) ? "Your edit (not saved or approved)" : freshModelReview && !item.carriedFrom ? "AI-suggested value" : "Suggested value"}</label>
                     <input id={"detail-" + index} value={item.editedValue} disabled={editingLocked} onChange={(event) => updateItem(index, event.target.value)} placeholder="Unknown" />
                     <label className="select-term"><input type="checkbox" checked={item.selected ?? false} disabled={editingLocked || !validItem(item)} onChange={(event) => selectItem(index, event.target.checked)} /> Include this value in my reviewed terms</label>
-                    {publicFields.has(item.field) && item.selected && (item.status !== "stated" || itemWasEdited(item) || item.manual) && <label className="select-term"><input type="checkbox" checked={item.publishConfirmed ?? false} disabled={editingLocked} onChange={(event) => confirmPublicValue(index, event.target.checked)} /> I have separately checked that this is the current value I want to publish, despite its suggestion status. This does not verify the other party’s consent.</label>}
-                    {publicFields.has(item.field) && <label className="select-term"><input type="checkbox" checked={Boolean(item.publicShare && mayShareItem(item))} disabled={editingLocked || !item.selected || !mayShareItem(item)} onChange={(event) => setPublicShare(index, event.target.checked)} /> Allow this field on the public card</label>}
+                    {publicFields.has(item.field) && item.selected && <details className="item-disclosure"><summary>Public card options</summary>
+                      {(item.status !== "stated" || itemWasEdited(item) || item.manual) && <label className="select-term"><input type="checkbox" checked={item.publishConfirmed ?? false} disabled={editingLocked} onChange={(event) => confirmPublicValue(index, event.target.checked)} /> I separately checked this is the current value I want to publish. This does not verify the other party’s consent.</label>}
+                      <label className="select-term"><input type="checkbox" checked={Boolean(item.publicShare && mayShareItem(item))} disabled={editingLocked || !mayShareItem(item)} onChange={(event) => setPublicShare(index, event.target.checked)} /> Allow this field on the public card</label>
+                    </details>}
                     {!validItem(item) && item.editedValue.trim() && <p className="edit-explanation">Use a valid value: dates need YYYY-MM-DD, times use HH:MM, and amounts use USD dollars.</p>}
                     {itemWasEdited(item) && !item.manual && <p className="edit-explanation">Original suggestion: {displayValue(item) || "Unknown"}. The source refers to that suggestion, not your edit.</p>}
                     {item.carriedFrom && currentEvidence?.ok && <p className="edit-explanation">Carried by you from personal review {item.carriedFrom.revision}.{item.carriedFrom.fixture ? " Earlier source was a fictional example." : ""} It has not been automatically accepted by the other party.</p>}
-                    {item.manual ? <p className="edit-explanation">Entered by you; no source quote or counterparty approval is attached.</p> : currentEvidence?.ok ? <div className="source-quote"><span>{item.carriedFrom ? "FROM AN EARLIER REVIEW" : "FROM YOUR NOTES"}</span><blockquote>“{item.quote}”</blockquote>{item.carriedFrom && <details><summary>Original source</summary><pre>{item.carriedFrom.source}</pre></details>}</div> : <p className="warning-note">Source link is not verified.</p>}
-                  </article>;
-                })}</div>}
-                {missing.length > 0 && <div className="missing-box"><div className="box-heading"><span>?</span><div><h3>Still to check</h3><p>These fields have no selected value; some may have unreviewed suggestions above. Blank doesn’t mean zero or agreed. Add your own value if needed.</p></div></div><div className="missing-tags">{missing.map((field) => <button type="button" key={field.key} disabled={editingLocked || review.items.some((item) => item.field === field.key && item.manual)} onClick={() => addManualField(field.key)}>+ {field.label}</button>)}</div></div>}
-                {review.questions.length > 0 && <div className="questions-box"><div className="question-heading"><div><p className="section-kicker">KEEP THE CONVERSATION GOING</p><h3>Questions to consider</h3></div><button className="secondary-button" type="button" onClick={copyQuestions}>Copy questions</button></div><ul>{review.questions.map((question, index) => <li key={index}>{question}</li>)}</ul>{copyMessage && <p className="copy-message" role="status">{copyMessage}</p>}<p className="questions-footnote">Review these first. JazzLink won’t send messages for you.</p></div>}
+                    {item.manual ? <p className="edit-explanation">Entered by you; no source quote or counterparty approval is attached.</p> : currentEvidence?.ok ? <details className="source-quote"><summary>{item.carriedFrom ? "Source from earlier review" : "See source quote"}</summary><blockquote>“{item.quote}”</blockquote>{item.carriedFrom && <details><summary>Original source</summary><pre>{item.carriedFrom.source}</pre></details>}</details> : <p className="warning-note">Source link is not verified.</p>}
+                  </details>;
+                })}</div></>}
+
                 <p className="local-note">{hasUnsavedChanges ? "There are unsaved edits." : "This draft is saved."} No agreement has been confirmed.</p>
               </div>
             )}

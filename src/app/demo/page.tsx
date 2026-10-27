@@ -50,6 +50,7 @@ export default function DemoPage() {
   const [publicConfirmed, setPublicConfirmed] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [message, setMessage] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
 
   function reviewReply() {
     if (!reviewConfirmed) return;
@@ -78,6 +79,14 @@ export default function DemoPage() {
     setPublicConfirmed(false);
     setSnapshot(null);
     setMessage("");
+    setCopyMessage("");
+  }
+
+  async function copyQuestions() {
+    try {
+      await navigator.clipboard.writeText("• What are all the new set times?\n• What is the total fee for the additional set?\n• When will payment be made?");
+      setCopyMessage("Copied. Review the questions before sending them yourself.");
+    } catch { setCopyMessage("Copy was unavailable. Select the questions and copy them manually."); }
   }
 
   const currentRows: ChangeReviewRow[] = snapshot ? [
@@ -95,15 +104,15 @@ export default function DemoPage() {
 
     <div className={styles.content}>
       <p className={styles.eyebrow}>INTERACTIVE FICTIONAL DEMO</p>
-      <h1>One change.<br /><em>A clearer conversation.</em></h1>
+      <h1>One change. <em>A clearer conversation.</em></h1>
       <p className={styles.lead}>See how a bandleader can inspect an earlier gig and a new request without silently changing the terms.</p>
       <div className={styles.notice} role="note"><strong>This is a prewritten example, not an AI result.</strong> Your demo choices stay in this browser and are not sent or saved; reloading clears them. Blue Alley and all messages are fictional.</div>
       <p className={styles.small}>For a real Meta-powered analysis of synthetic or permission-cleared text, use the <Link href="/">signed-in workspace</Link>.</p>
 
       <ol className={styles.steps} aria-label="Demo steps">
         <li className={phase === "initial" ? styles.active : ""}><span>01</span> Review original details</li>
-        <li className={phase === "request" ? styles.active : ""}><span>02</span> Inspect the request</li>
-        <li className={phase === "reply" || phase === "reviewed" ? styles.active : ""}><span>03</span> Review the reply</li>
+        <li className={phase === "request" ? styles.active : ""}><span>02</span> Inspect the changes</li>
+        <li className={phase === "reply" || phase === "reviewed" ? styles.active : ""}><span>03</span> Record your review</li>
       </ol>
 
       <section className={styles.panel} aria-labelledby="initial-title">
@@ -125,8 +134,8 @@ export default function DemoPage() {
         <h2 id="request-title">A request is not a change yet.</h2>
         <blockquote>{requestSource}</blockquote>
         <div className={styles.pending}><strong>Needs clarification</strong><p>Only a new start time and one extra set were requested. The full schedule and fee for that arrangement are not confirmed. The earlier review stays as it was.</p></div>
+        <div className={styles.questions}><strong>Questions you could ask</strong><ul><li>What are all the new set times?</li><li>What is the total fee for the additional set?</li><li>When will payment be made?</li></ul><button className={styles.secondary} type="button" onClick={copyQuestions}>Copy questions</button>{copyMessage && <p role="status">{copyMessage}</p>}<p>Nothing is sent for you.</p></div>
         <ChangeReview previous={previousRows} current={pendingRows} />
-        <div className={styles.questions}><strong>Questions you could ask</strong><ul><li>What are all the new set times?</li><li>What is the total fee for the additional set?</li><li>When will payment be made?</li></ul><p>Nothing is sent for you.</p></div>
         {phase === "request" && <button className={styles.primary} type="button" onClick={() => setPhase("reply")}>Show the fictional reply →</button>}
       </section>}
 
@@ -161,10 +170,9 @@ export default function DemoPage() {
         {snapshot.feeCents === null && <p className={styles.warning}>Fee for the new schedule is still unconfirmed.</p>}
         <label className={styles.publicCheck}><input type="checkbox" checked={publicConfirmed} disabled={!snapshot.usesNewSchedule} onChange={(event) => setPublicConfirmed(event.target.checked)} /> <span>I separately checked that the date and reviewed new set times are suitable for the public demo card.</span></label>
         {!snapshot.usesNewSchedule && <p className={styles.small}>Select the complete new schedule and review it before enabling the card.</p>}
-        <PublicTermsCard revision={2} title={original.title} venue={original.venue} artist={original.artist}
-          date={snapshot.usesNewSchedule && publicConfirmed ? original.date : undefined}
-          sets={snapshot.usesNewSchedule && publicConfirmed ? snapshot.sets : undefined}
-          setCount={snapshot.usesNewSchedule && publicConfirmed ? String(snapshot.setCount) : undefined} />
+        {snapshot.usesNewSchedule && !publicConfirmed && <p className={styles.small}>Check the public card option above to preview and download these details.</p>}
+        {snapshot.usesNewSchedule && publicConfirmed && <PublicTermsCard revision={2} title={original.title} venue={original.venue} artist={original.artist}
+          date={original.date} sets={snapshot.sets} setCount={String(snapshot.setCount)} />}
         <p className={styles.small}>The card is a local download only. The performance fee, messages and payment details are never passed to it.</p>
       </section>}
     </div>

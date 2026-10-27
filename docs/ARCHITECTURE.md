@@ -49,6 +49,8 @@ Model calls run outside transactions. Persist source/run identity first. Attach 
 
 The configured production model is muse-spark-1.2. One synthetic structured-output probe and one production request passed, but a later GitHub Actions request returned `model_not_found`; the environments use separate credentials. Verify availability and accuracy independently. Schema checks constrain shape; evidence review and state rules constrain action. External material is untrusted data, never tool instructions.
 
+The current synchronous extraction path accepts only identifiers and expected versions for a saved draft. The server loads the owner's latest personal review, validates source links and passes selected values as untrusted context alongside the new text. It checks the saved version and review again after inference and rejects a detected change. No database lock spans the external request; a call and quota reservation may already have been spent when the result is rejected. This path does not persist a model-run record or provide idempotent inference. Matching a quote is a structural check, not proof of its meaning or of another person's consent. The contextual prompt has not been evaluated with a live provider.
+
 Begin with bounded synchronous requests, input/output limits, user/global quotas and limited retries for classified transient failures. Log metadata, not private text or secrets. Provider failure leaves saved work editable. Judge traffic cannot trigger unlimited inference.
 
 No image generator, SAM, legal document renderer or background platform is needed for the core. Screenshot input is optional and must pass real capability/access checks first.

@@ -33,18 +33,25 @@ function Rows({ rows, previous }: { rows: readonly ChangeReviewRow[]; previous?:
 /** Private in-app review only; display does not alter or approve either set of rows. */
 export function ChangeReview({ previous, current }: ChangeReviewProps) {
   const groups = groupReviewRows(previous, current);
+  const attention = groups.filter((group) => group.current.length > 0 && (
+    group.hasDifferentCurrentValues || !group.previous.length ||
+    group.current.some((row) => !group.previous.some((old) => old.value === row.value))
+  ));
+  const other = groups.filter((group) => !attention.includes(group));
+  const renderGroup = (group: typeof groups[number]) => <article className={styles.group} key={group.field}>
+    <h4>{group.label}</h4>
+    {group.hasDifferentCurrentValues && <p className={styles.warning}>Multiple values are shown. Check their context before choosing.</p>}
+    <div className={styles.columns}>
+      <div><h5>Earlier personal review</h5><Rows rows={group.previous} /></div>
+      <div><h5>Current suggestions</h5><Rows rows={group.current} previous={group.previous} /></div>
+    </div>
+  </article>;
   return <section className={styles.panel} aria-labelledby="change-review-title">
-    <h3 id="change-review-title">Compare reviewed details</h3>
-    <p className={styles.intro}>Compare the previously reviewed snapshot with the current suggestions. A match only compares values; it does not establish agreement or counterparty approval.</p>
-    {!groups.length ? <p className={styles.empty}>No details to compare yet.</p> : <div className={styles.groups}>
-      {groups.map((group) => <article className={styles.group} key={group.field}>
-        <h4>{group.label}</h4>
-        {group.hasDifferentCurrentValues && <p className={styles.warning}>Multiple different values are shown. Review their context before choosing.</p>}
-        <div className={styles.columns}>
-          <div><h5>Previously reviewed snapshot</h5><Rows rows={group.previous} /></div>
-          <div><h5>Current suggestions</h5><Rows rows={group.current} previous={group.previous} /></div>
-        </div>
-      </article>)}
-    </div>}
+    <h3 id="change-review-title">Inspect the changes</h3>
+    <p className={styles.intro}>Compare current suggestions with your earlier review. A difference is a request or suggestion until you decide what to include. Matching values alone do not establish agreement or counterparty approval.</p>
+    {!groups.length ? <p className={styles.empty}>No details to compare yet.</p> : <>
+      {attention.length ? <div className={styles.groups}>{attention.map(renderGroup)}</div> : <p className={styles.empty}>No different values are shown in the current suggestions.</p>}
+      {other.length > 0 && <details className={styles.more}><summary>Other earlier or matching details ({other.length})</summary><div className={styles.groups}>{other.map(renderGroup)}</div></details>}
+    </>}
   </section>;
 }
